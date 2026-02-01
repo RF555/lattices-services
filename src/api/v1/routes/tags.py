@@ -27,12 +27,12 @@ router = APIRouter(prefix="/tags", tags=["tags"])
     response_model=TagListResponse,
     summary="List all tags",
 )
-@limiter.limit("30/minute")
+@limiter.limit("30/minute")  # type: ignore[untyped-decorator]
 async def list_tags(
     request: Request,
     user: CurrentUser,
     service: TagService = Depends(get_tag_service),
-):
+) -> TagListResponse:
     """Get all tags for the authenticated user, including usage counts."""
     tags_with_counts = await service.get_all_for_user(user.id)
     return TagListResponse(
@@ -59,13 +59,13 @@ async def list_tags(
         409: {"description": "Tag with this name already exists"},
     },
 )
-@limiter.limit("10/minute")
+@limiter.limit("10/minute")  # type: ignore[untyped-decorator]
 async def create_tag(
     request: Request,
     body: TagCreate,
     user: CurrentUser,
     service: TagService = Depends(get_tag_service),
-):
+) -> TagDetailResponse:
     """Create a new tag. Tag names must be unique per user."""
     tag = await service.create(
         user_id=user.id,
@@ -93,14 +93,14 @@ async def create_tag(
         409: {"description": "Tag with this name already exists"},
     },
 )
-@limiter.limit("10/minute")
+@limiter.limit("10/minute")  # type: ignore[untyped-decorator]
 async def update_tag(
     request: Request,
     tag_id: UUID,
     body: TagUpdate,
     user: CurrentUser,
     service: TagService = Depends(get_tag_service),
-):
+) -> TagDetailResponse:
     """Update an existing tag's name or color."""
     tag = await service.update(
         tag_id=tag_id,
@@ -128,13 +128,13 @@ async def update_tag(
         404: {"description": "Tag not found"},
     },
 )
-@limiter.limit("10/minute")
+@limiter.limit("10/minute")  # type: ignore[untyped-decorator]
 async def delete_tag(
     request: Request,
     tag_id: UUID,
     user: CurrentUser,
     service: TagService = Depends(get_tag_service),
-):
+) -> None:
     """Delete a tag. Automatically detaches from all tasks."""
     await service.delete(tag_id, user.id)
     return None
@@ -149,13 +149,13 @@ todos_tags_router = APIRouter(prefix="/todos/{todo_id}/tags", tags=["todo-tags"]
     response_model=TagListResponse,
     summary="Get tags for a task",
 )
-@limiter.limit("30/minute")
+@limiter.limit("30/minute")  # type: ignore[untyped-decorator]
 async def get_todo_tags(
     request: Request,
     todo_id: UUID,
     user: CurrentUser,
     service: TagService = Depends(get_tag_service),
-):
+) -> TagListResponse:
     """Get all tags attached to a specific task."""
     tags = await service.get_tags_for_todo(todo_id, user.id)
     return TagListResponse(
@@ -182,14 +182,14 @@ async def get_todo_tags(
         404: {"description": "Task or tag not found"},
     },
 )
-@limiter.limit("10/minute")
+@limiter.limit("10/minute")  # type: ignore[untyped-decorator]
 async def attach_tag(
     request: Request,
     todo_id: UUID,
     body: TodoTagAttach,
     user: CurrentUser,
     service: TagService = Depends(get_tag_service),
-):
+) -> TodoTagResponse:
     """Attach a tag to a task. Idempotent if already attached."""
     await service.attach_to_todo(body.tag_id, todo_id, user.id)
     return TodoTagResponse(
@@ -208,14 +208,14 @@ async def attach_tag(
         404: {"description": "Task or tag not found"},
     },
 )
-@limiter.limit("10/minute")
+@limiter.limit("10/minute")  # type: ignore[untyped-decorator]
 async def detach_tag(
     request: Request,
     todo_id: UUID,
     tag_id: UUID,
     user: CurrentUser,
     service: TagService = Depends(get_tag_service),
-):
+) -> None:
     """Detach a tag from a task."""
     await service.detach_from_todo(tag_id, todo_id, user.id)
     return None

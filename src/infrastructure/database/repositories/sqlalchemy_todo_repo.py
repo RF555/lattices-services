@@ -122,10 +122,7 @@ class SQLAlchemyTodoRepository:
     def _to_entity(self, model: TodoModel) -> Todo:
         """Convert ORM model to domain entity."""
         return Todo(
-            id=model.id,  # type: ignore[arg-type]
-            user_id=model.user_id,  # type: ignore[arg-type]
-            parent_id=model.parent_id,  # type: ignore[arg-type]
-            title=model.title,
+            id=model.id,            user_id=model.user_id,            parent_id=model.parent_id,            title=model.title,
             description=model.description,
             is_completed=model.is_completed,
             position=model.position,

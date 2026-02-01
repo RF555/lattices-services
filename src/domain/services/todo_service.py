@@ -1,7 +1,7 @@
 """Todo service layer with business logic."""
 
 from datetime import datetime
-from typing import Dict, List, Optional, Tuple
+from typing import Callable, Dict, List, Optional, Tuple, cast
 from uuid import UUID
 
 from core.exceptions import AppException, ErrorCode, TodoNotFoundError
@@ -12,7 +12,7 @@ from domain.repositories.unit_of_work import IUnitOfWork
 class TodoService:
     """Service layer for Todo business logic."""
 
-    def __init__(self, uow_factory):
+    def __init__(self, uow_factory: Callable[[], IUnitOfWork]) -> None:
         self._uow_factory = uow_factory
 
     async def get_child_counts_batch(
@@ -25,12 +25,12 @@ class TodoService:
         if not todo_ids:
             return {}
         async with self._uow_factory() as uow:
-            return await uow.todos.get_child_counts_batch(todo_ids)
+            return await uow.todos.get_child_counts_batch(todo_ids)  # type: ignore[no-any-return]
 
     async def get_all_for_user(self, user_id: UUID) -> List[Todo]:
         """Get all todos for a user (flat list for tree assembly)."""
         async with self._uow_factory() as uow:
-            return await uow.todos.get_all_for_user(user_id)
+            return await uow.todos.get_all_for_user(user_id)  # type: ignore[no-any-return]
 
     async def get_by_id(self, todo_id: UUID, user_id: UUID) -> Todo:
         """Get a specific todo, ensuring user ownership."""
@@ -98,19 +98,19 @@ class TodoService:
             if parent_id is not ... and parent_id != todo.parent_id:
                 if parent_id is not None:
                     # Check parent exists and belongs to user
-                    parent = await uow.todos.get(parent_id)
+                    parent = await uow.todos.get(cast(UUID, parent_id))
                     if not parent or parent.user_id != user_id:
                         raise TodoNotFoundError(str(parent_id))
 
                     # Prevent circular reference
-                    if await self._would_create_cycle(uow, todo_id, parent_id):
+                    if await self._would_create_cycle(uow, todo_id, cast(UUID, parent_id)):
                         raise AppException(
                             ErrorCode.CIRCULAR_REFERENCE,
                             "Cannot move task to its own descendant",
                             400,
                         )
 
-                todo.parent_id = parent_id  # type: ignore[assignment]
+                todo.parent_id = cast(Optional[UUID], parent_id)
 
             # Update fields
             if title is not None:
@@ -145,7 +145,7 @@ class TodoService:
             deleted = await uow.todos.delete(todo_id)
             await uow.commit()
 
-            return deleted
+            return deleted  # type: ignore[no-any-return]
 
     async def _would_create_cycle(
         self, uow: IUnitOfWork, todo_id: UUID, new_parent_id: UUID

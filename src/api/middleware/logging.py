@@ -1,6 +1,7 @@
 """Request logging middleware."""
 
 import time
+from typing import Awaitable, Callable
 
 import structlog
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -14,7 +15,9 @@ logger = structlog.get_logger()
 class RequestLoggingMiddleware(BaseHTTPMiddleware):
     """Log all requests with timing information."""
 
-    async def dispatch(self, request: Request, call_next) -> Response:
+    async def dispatch(
+        self, request: Request, call_next: Callable[[Request], Awaitable[Response]]
+    ) -> Response:
         start_time = time.perf_counter()
         request_id = getattr(request.state, "request_id", "unknown")
 

@@ -32,4 +32,4 @@ def setup_logging() -> None:
 
 def get_logger() -> structlog.stdlib.BoundLogger:
     """Get a structured logger instance."""
-    return structlog.get_logger()
+    return structlog.get_logger()  # type: ignore[no-any-return]

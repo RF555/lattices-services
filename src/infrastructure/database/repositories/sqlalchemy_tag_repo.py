@@ -147,9 +147,7 @@ class SQLAlchemyTagRepository:
     def _to_entity(self, model: TagModel) -> Tag:
         """Convert ORM model to domain entity."""
         return Tag(
-            id=model.id,  # type: ignore[arg-type]
-            user_id=model.user_id,  # type: ignore[arg-type]
-            name=model.name,
+            id=model.id,            user_id=model.user_id,            name=model.name,
             color_hex=model.color_hex,
             created_at=model.created_at,
         )

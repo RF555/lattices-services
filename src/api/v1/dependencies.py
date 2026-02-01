@@ -1,6 +1,7 @@
 """Dependency injection factories for API v1."""
 
 from functools import lru_cache
+from typing import Callable
 
 from domain.services.tag_service import TagService
 from domain.services.todo_service import TodoService
@@ -8,10 +9,10 @@ from infrastructure.database.session import async_session_factory
 from infrastructure.database.sqlalchemy_uow import SQLAlchemyUnitOfWork
 
 
-def get_uow_factory():
+def get_uow_factory() -> Callable[[], SQLAlchemyUnitOfWork]:
     """Factory for creating Unit of Work instances."""
 
-    def factory():
+    def factory() -> SQLAlchemyUnitOfWork:
         return SQLAlchemyUnitOfWork(async_session_factory)
 
     return factory

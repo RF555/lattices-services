@@ -1,6 +1,6 @@
 """Database session management."""
 
-from typing import AsyncGenerator
+from typing import Any, AsyncGenerator
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
@@ -9,13 +9,13 @@ from core.config import settings
 # Supabase uses Supavisor (connection pooler) in transaction mode.
 # asyncpg's prepared statement cache is incompatible with transaction-mode
 # pooling, so we disable it when connecting through the pooler.
-_connect_args: dict = {}
-if "supabase.com" in settings.database_url or "pooler.supabase.com" in settings.database_url:
+_connect_args: dict[str, Any] = {}
+if "supabase.com" in settings.async_database_url or "pooler.supabase.com" in settings.async_database_url:
     _connect_args["statement_cache_size"] = 0
 
 # Create async engine
 engine = create_async_engine(
-    settings.database_url,
+    settings.async_database_url,
     echo=settings.debug,
     pool_pre_ping=True,
     connect_args=_connect_args,

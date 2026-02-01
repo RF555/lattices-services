@@ -1,7 +1,7 @@
 """Pydantic schemas for Todo API."""
 
 from datetime import datetime
-from typing import List, Optional
+from typing import Any, List, Optional
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -88,7 +88,7 @@ class TodoListResponse(BaseModel):
     """Schema for list of Todos response."""
 
     data: List[TodoResponse]
-    meta: dict = Field(default_factory=dict)
+    meta: dict[str, Any] = Field(default_factory=dict)
 
 
 class TodoDetailResponse(BaseModel):

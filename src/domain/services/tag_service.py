@@ -1,23 +1,24 @@
 """Tag service layer with business logic."""
 
-from typing import Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional
 from uuid import UUID
 
 from core.exceptions import AppException, ErrorCode, TagNotFoundError, TodoNotFoundError
 from domain.entities.tag import Tag
+from domain.repositories.unit_of_work import IUnitOfWork
 
 
 class TagService:
     """Service layer for Tag business logic."""
 
-    def __init__(self, uow_factory):
+    def __init__(self, uow_factory: Callable[[], IUnitOfWork]) -> None:
         self._uow_factory = uow_factory
 
-    async def get_all_for_user(self, user_id: UUID) -> List[dict]:
+    async def get_all_for_user(self, user_id: UUID) -> List[Dict[str, Any]]:
         """Get all tags for user with usage counts."""
         async with self._uow_factory() as uow:
             tags = await uow.tags.get_all_for_user(user_id)
-            result = []
+            result: List[Dict[str, Any]] = []
             for tag in tags:
                 count = await uow.tags.get_usage_count(tag.id)
                 result.append({
@@ -103,7 +104,7 @@ class TagService:
 
             deleted = await uow.tags.delete(tag_id)
             await uow.commit()
-            return deleted
+            return deleted  # type: ignore[no-any-return]
 
     async def attach_to_todo(
         self,
@@ -154,7 +155,7 @@ class TagService:
             if not todo or todo.user_id != user_id:
                 raise TodoNotFoundError(str(todo_id))
 
-            return await uow.tags.get_for_todo(todo_id)
+            return await uow.tags.get_for_todo(todo_id)  # type: ignore[no-any-return]
 
     async def get_tags_for_todos_batch(
         self, todo_ids: List[UUID]
@@ -163,4 +164,4 @@ class TagService:
         if not todo_ids:
             return {}
         async with self._uow_factory() as uow:
-            return await uow.tags.get_for_todos_batch(todo_ids)
+            return await uow.tags.get_for_todos_batch(todo_ids)  # type: ignore[no-any-return]

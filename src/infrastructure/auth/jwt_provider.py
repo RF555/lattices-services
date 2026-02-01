@@ -136,8 +136,8 @@ class JWTAuthProvider:
             return None
 
     async def _validate_es256(
-        self, token: str, header: dict
-    ) -> Optional[dict]:
+        self, token: str, header: dict[str, Any]
+    ) -> Optional[dict[str, Any]]:
         """Validate an ES256-signed JWT using JWKS public keys."""
         kid = header.get("kid")
         if not kid:
@@ -156,7 +156,7 @@ class JWTAuthProvider:
                 return None
 
         ec_key = ECKey(key_data, algorithm="ES256")
-        return jwt.decode(
+        return jwt.decode(  # type: ignore[no-any-return]
             token,
             ec_key,
             algorithms=["ES256"],
@@ -175,7 +175,7 @@ class JWTAuthProvider:
         """
         expire = datetime.utcnow() + timedelta(minutes=self._expire_minutes)
 
-        payload: dict = {
+        payload: dict[str, Any] = {
             "sub": str(user.id),
             "email": user.email,
             "aud": "authenticated",
@@ -186,4 +186,6 @@ class JWTAuthProvider:
             },
         }
 
-        return jwt.encode(payload, self._secret_key, algorithm=self._algorithm)
+        return jwt.encode(  # type: ignore[no-any-return]
+            payload, self._secret_key, algorithm=self._algorithm
+        )

@@ -167,12 +167,18 @@ All configuration is loaded from environment variables (or `.env` file). See `.e
 | `DEBUG` | Enable debug mode | `false` | No |
 | `HOST` | Server bind address | `0.0.0.0` | No |
 | `PORT` | Server port | `8000` | No |
-| `DATABASE_URL` | PostgreSQL connection string (asyncpg) | -- | **Yes** |
+| `DATABASE_URL` | PostgreSQL connection string | -- | **Yes** |
 | `JWT_SECRET_KEY` | Secret key for JWT token signing | -- | **Yes** |
 | `JWT_ALGORITHM` | JWT signing algorithm | `HS256` | No |
 | `JWT_EXPIRE_MINUTES` | Token expiration in minutes | `30` | No |
 | `CORS_ORIGINS` | Comma-separated allowed origins | `http://localhost:3000` | No |
 | `RATE_LIMIT_ENABLED` | Enable/disable rate limiting | `true` | No |
+| `SUPABASE_URL` | Supabase project URL | -- | **Yes** |
+| `SUPABASE_ANON_KEY` | Supabase anonymous/public key | -- | **Yes** |
+| `SUPABASE_SERVICE_ROLE_KEY` | Supabase service role key | -- | **Yes** |
+| `SUPABASE_JWKS_URL` | Supabase JWKS endpoint for ES256 JWT validation | -- | No |
+
+> **Note:** `DATABASE_URL` accepts both `postgresql://` and `postgresql+asyncpg://` schemes. The app auto-converts to `postgresql+asyncpg://` at runtime via the `async_database_url` computed property.
 
 ---
 
@@ -316,6 +322,7 @@ lattices-services/
 ├── .env.example                         # Environment variable template
 ├── alembic.ini                          # Alembic configuration
 ├── pyproject.toml                       # Project config & dependencies
+├── pyrightconfig.json                   # Pyright/Pylance IDE configuration
 └── render.yaml                          # Render deployment config
 ```
 
@@ -385,13 +392,17 @@ mypy src/ --strict
 
 ### Render
 
-The project includes a `render.yaml` for one-click deployment to [Render](https://render.com/):
+The project includes a `render.yaml` for one-click deployment to [Render](https://render.com/) using **Supabase** as the external database:
 
 1. Connect your GitHub repository to Render
-2. Render auto-detects `render.yaml` and provisions:
-   - A web service running the FastAPI app
-   - A PostgreSQL database
-3. Environment variables are configured automatically
+2. Render auto-detects `render.yaml` and provisions a web service
+3. Set the following secret environment variables in the Render dashboard:
+   - `DATABASE_URL` -- Your Supabase PostgreSQL connection string
+   - `SUPABASE_URL` -- Your Supabase project URL
+   - `SUPABASE_ANON_KEY` -- Your Supabase anonymous key
+   - `SUPABASE_SERVICE_ROLE_KEY` -- Your Supabase service role key
+   - `JWT_SECRET_KEY` -- Your JWT signing secret (Supabase JWT secret)
+4. The build step automatically runs `alembic upgrade head` to apply migrations
 
 ### Docker (manual)
 
@@ -410,8 +421,10 @@ CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000"]
 
 - [ ] Set `APP_ENV=production`
 - [ ] Set `DEBUG=false`
-- [ ] Generate a strong `JWT_SECRET_KEY`
+- [ ] Generate a strong `JWT_SECRET_KEY` (use the Supabase JWT secret)
 - [ ] Configure `CORS_ORIGINS` for your frontend domain
+- [ ] Set `DATABASE_URL` to your Supabase PostgreSQL connection string
+- [ ] Set `SUPABASE_URL`, `SUPABASE_ANON_KEY`, and `SUPABASE_SERVICE_ROLE_KEY`
 - [ ] Run `alembic upgrade head` for database migrations
 - [ ] Verify `/health` returns `200`
 - [ ] Verify `/health/detailed` shows `database: healthy`

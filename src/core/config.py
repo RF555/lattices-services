@@ -59,13 +59,26 @@ class Settings(BaseSettings):
     jwt_algorithm: str = Field(default="HS256")
     jwt_expire_minutes: int = Field(default=30)
 
-    @computed_field
+    @computed_field  # type: ignore[prop-decorator]
     @property
     def supabase_jwks_url(self) -> str:
         """JWKS endpoint for ES256 token verification."""
         if self.supabase_url:
             return f"{self.supabase_url.rstrip('/')}/auth/v1/.well-known/jwks.json"
         return ""
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def async_database_url(self) -> str:
+        """Ensure the database URL uses the asyncpg driver scheme.
+
+        Render and other providers supply a standard ``postgresql://`` URL.
+        SQLAlchemy's async engine requires ``postgresql+asyncpg://``.
+        """
+        url = self.database_url
+        if url.startswith("postgresql://"):
+            url = url.replace("postgresql://", "postgresql+asyncpg://", 1)
+        return url
 
     # Rate Limiting
     rate_limit_enabled: bool = Field(
@@ -79,13 +92,13 @@ class Settings(BaseSettings):
         description="Comma-separated list of allowed origins",
     )
 
-    @computed_field
+    @computed_field  # type: ignore[prop-decorator]
     @property
     def is_production(self) -> bool:
         """Check if running in production environment."""
         return self.app_env == "production"
 
-    @computed_field
+    @computed_field  # type: ignore[prop-decorator]
     @property
     def cors_origins_list(self) -> List[str]:
         """Parse CORS origins into a list."""

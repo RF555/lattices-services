@@ -1,6 +1,6 @@
 """Todo API routes."""
 
-from typing import Optional
+from typing import List, Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query, Request, status
@@ -16,6 +16,8 @@ from api.v1.schemas.todo import (
     TodoUpdate,
 )
 from core.rate_limit import limiter
+from domain.entities.tag import Tag
+from domain.entities.todo import Todo
 from domain.services.tag_service import TagService
 from domain.services.todo_service import TodoService
 
@@ -30,7 +32,7 @@ router = APIRouter(prefix="/todos", tags=["todos"])
         200: {"description": "List of tasks with tags and metadata"},
     },
 )
-@limiter.limit("30/minute")
+@limiter.limit("30/minute")  # type: ignore[untyped-decorator]
 async def list_todos(
     request: Request,
     user: CurrentUser,
@@ -38,7 +40,7 @@ async def list_todos(
     tag_service: TagService = Depends(get_tag_service),
     include_completed: bool = Query(True, description="Include completed todos"),
     tag_id: Optional[UUID] = Query(None, description="Filter by tag ID"),
-):
+) -> TodoListResponse:
     """
     Get all tasks for the authenticated user as a flat list.
 
@@ -86,14 +88,14 @@ async def list_todos(
         404: {"description": "Task not found"},
     },
 )
-@limiter.limit("30/minute")
+@limiter.limit("30/minute")  # type: ignore[untyped-decorator]
 async def get_todo(
     request: Request,
     todo_id: UUID,
     user: CurrentUser,
     todo_service: TodoService = Depends(get_todo_service),
     tag_service: TagService = Depends(get_tag_service),
-):
+) -> TodoDetailResponse:
     """Get a specific task by ID, including its tags."""
     todo = await todo_service.get_by_id(todo_id, user.id)
     tags = await tag_service.get_tags_for_todo(todo_id, user.id)
@@ -113,13 +115,13 @@ async def get_todo(
         422: {"description": "Validation error"},
     },
 )
-@limiter.limit("10/minute")
+@limiter.limit("10/minute")  # type: ignore[untyped-decorator]
 async def create_todo(
     request: Request,
     body: TodoCreate,
     user: CurrentUser,
     service: TodoService = Depends(get_todo_service),
-):
+) -> TodoDetailResponse:
     """
     Create a new task for the authenticated user.
 
@@ -146,7 +148,7 @@ async def create_todo(
         422: {"description": "Validation error"},
     },
 )
-@limiter.limit("10/minute")
+@limiter.limit("10/minute")  # type: ignore[untyped-decorator]
 async def update_todo(
     request: Request,
     todo_id: UUID,
@@ -154,7 +156,7 @@ async def update_todo(
     user: CurrentUser,
     todo_service: TodoService = Depends(get_todo_service),
     tag_service: TagService = Depends(get_tag_service),
-):
+) -> TodoDetailResponse:
     """
     Update an existing task. All fields are optional (partial update).
 
@@ -192,20 +194,20 @@ async def update_todo(
         404: {"description": "Task not found"},
     },
 )
-@limiter.limit("10/minute")
+@limiter.limit("10/minute")  # type: ignore[untyped-decorator]
 async def delete_todo(
     request: Request,
     todo_id: UUID,
     user: CurrentUser,
     service: TodoService = Depends(get_todo_service),
-):
+) -> None:
     """Delete a task and all its descendants (cascade delete)."""
     await service.delete(todo_id, user.id)
     return None
 
 
 def _build_todo_response(
-    todo, tags, child_count: int = 0, completed_child_count: int = 0
+    todo: Todo, tags: List[Tag], child_count: int = 0, completed_child_count: int = 0
 ) -> TodoResponse:
     """Convert domain entity to response schema with tags and child counts."""
     return TodoResponse(

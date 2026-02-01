@@ -21,7 +21,7 @@ from infrastructure.database.models import Base  # noqa: E402
 config = context.config
 
 # Set the database URL from settings
-config.set_main_option("sqlalchemy.url", settings.database_url)
+config.set_main_option("sqlalchemy.url", settings.async_database_url)
 
 # Interpret the config file for Python logging.
 if config.config_file_name is not None:
@@ -64,7 +64,7 @@ async def run_async_migrations() -> None:
     """Run migrations in async mode."""
     # Supabase pooler (transaction mode) requires disabling prepared statements
     connect_args: dict = {}
-    if "supabase.com" in settings.database_url:
+    if "supabase.com" in settings.async_database_url:
         connect_args["statement_cache_size"] = 0
 
     connectable = async_engine_from_config(
