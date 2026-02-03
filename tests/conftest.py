@@ -13,6 +13,8 @@ os.environ["RATE_LIMIT_ENABLED"] = "false"
 import pytest
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.ext.compiler import compiles
+from sqlalchemy.dialects.postgresql import JSONB
 
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
@@ -20,6 +22,12 @@ sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 from infrastructure.database.models import Base, ProfileModel  # noqa: E402
 from infrastructure.auth.provider import TokenUser  # noqa: E402
 from infrastructure.auth.jwt_provider import JWTAuthProvider  # noqa: E402
+
+
+# Compile JSONB as JSON for SQLite (used in tests)
+@compiles(JSONB, "sqlite")  # type: ignore[no-untyped-call]
+def _compile_jsonb_sqlite(type_, compiler, **kw):
+    return "JSON"
 
 
 # Test database URL (SQLite in memory)

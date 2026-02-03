@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from infrastructure.database.repositories.sqlalchemy_activity_repo import SQLAlchemyActivityRepository
 from infrastructure.database.repositories.sqlalchemy_group_repo import SQLAlchemyGroupRepository
+from infrastructure.database.repositories.sqlalchemy_notification_repo import SQLAlchemyNotificationRepository
 from infrastructure.database.repositories.sqlalchemy_todo_repo import SQLAlchemyTodoRepository
 from infrastructure.database.repositories.sqlalchemy_tag_repo import SQLAlchemyTagRepository
 from infrastructure.database.repositories.sqlalchemy_invitation_repo import SQLAlchemyInvitationRepository
@@ -53,6 +54,13 @@ class SQLAlchemyUnitOfWork:
         if not self._session:
             raise RuntimeError("UnitOfWork not initialized. Use as context manager.")
         return SQLAlchemyGroupRepository(self._session)
+
+    @property
+    def notifications(self) -> SQLAlchemyNotificationRepository:
+        """Get notification repository."""
+        if not self._session:
+            raise RuntimeError("UnitOfWork not initialized. Use as context manager.")
+        return SQLAlchemyNotificationRepository(self._session)
 
     @property
     def workspaces(self) -> SQLAlchemyWorkspaceRepository:

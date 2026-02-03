@@ -3,7 +3,7 @@
 import hashlib
 import secrets
 from datetime import datetime, timedelta
-from typing import Callable, List, Tuple
+from typing import Callable, List, Optional, Tuple
 from uuid import UUID
 
 from core.exceptions import (
@@ -22,15 +22,22 @@ from domain.entities.invitation import (
     Invitation,
     InvitationStatus,
 )
+from domain.entities.notification import NotificationTypes
 from domain.entities.workspace import WorkspaceMember, WorkspaceRole, has_permission
 from domain.repositories.unit_of_work import IUnitOfWork
+from domain.services.notification_service import NotificationService
 
 
 class InvitationService:
     """Service layer for workspace invitation business logic."""
 
-    def __init__(self, uow_factory: Callable[[], IUnitOfWork]) -> None:
+    def __init__(
+        self,
+        uow_factory: Callable[[], IUnitOfWork],
+        notification_service: Optional["NotificationService"] = None,
+    ) -> None:
         self._uow_factory = uow_factory
+        self._notification = notification_service
 
     async def create_invitation(
         self,
@@ -101,6 +108,7 @@ class InvitationService:
         token: str,
         user_id: UUID,
         user_email: str,
+        actor_name: Optional[str] = None,
     ) -> WorkspaceMember:
         """Accept a workspace invitation using the raw token.
 
@@ -177,6 +185,24 @@ class InvitationService:
             await uow.invitations.update_status(
                 invitation.id, InvitationStatus.ACCEPTED
             )
+
+            # Notify the inviter that the invitation was accepted
+            if self._notification:
+                workspace = await uow.workspaces.get(invitation.workspace_id)
+                workspace_name = workspace.name if workspace else ""
+                await self._notification.notify(
+                    uow=uow,
+                    type_name=NotificationTypes.INVITATION_ACCEPTED,
+                    workspace_id=invitation.workspace_id,
+                    actor_id=user_id,
+                    entity_type="invitation",
+                    entity_id=invitation.id,
+                    recipient_ids=[invitation.invited_by],
+                    metadata={
+                        "actor_name": actor_name or user_email,
+                        "workspace_name": workspace_name,
+                    },
+                )
 
             await uow.commit()
             return added

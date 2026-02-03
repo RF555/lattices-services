@@ -14,6 +14,7 @@ from core.exceptions import (
     WorkspaceSlugTakenError,
 )
 from domain.entities.activity import Actions
+from domain.entities.notification import NotificationTypes
 from domain.entities.workspace import (
     Workspace,
     WorkspaceMember,
@@ -22,6 +23,7 @@ from domain.entities.workspace import (
 )
 from domain.repositories.unit_of_work import IUnitOfWork
 from domain.services.activity_service import ActivityService
+from domain.services.notification_service import NotificationService
 
 
 class WorkspaceService:
@@ -31,9 +33,11 @@ class WorkspaceService:
         self,
         uow_factory: Callable[[], IUnitOfWork],
         activity_service: Optional["ActivityService"] = None,
+        notification_service: Optional["NotificationService"] = None,
     ) -> None:
         self._uow_factory = uow_factory
         self._activity = activity_service
+        self._notification = notification_service
 
     async def get_all_for_user(self, user_id: UUID) -> List[Workspace]:
         """Get all workspaces a user is a member of."""
@@ -165,6 +169,7 @@ class WorkspaceService:
         user_id: UUID,
         target_user_id: UUID,
         role: WorkspaceRole = WorkspaceRole.MEMBER,
+        actor_name: Optional[str] = None,
     ) -> WorkspaceMember:
         """Add a member to a workspace. Requires Admin+ role.
 
@@ -205,6 +210,21 @@ class WorkspaceService:
                     metadata={"role": role.name.lower()},
                 )
 
+            if self._notification:
+                await self._notification.notify(
+                    uow=uow,
+                    type_name=NotificationTypes.MEMBER_ADDED,
+                    workspace_id=workspace_id,
+                    actor_id=user_id,
+                    entity_type="workspace",
+                    entity_id=workspace_id,
+                    recipient_ids=[target_user_id],
+                    metadata={
+                        "actor_name": actor_name or "",
+                        "workspace_name": workspace.name,
+                    },
+                )
+
             await uow.commit()
             return added
 
@@ -214,6 +234,7 @@ class WorkspaceService:
         user_id: UUID,
         target_user_id: UUID,
         role: WorkspaceRole,
+        actor_name: Optional[str] = None,
     ) -> WorkspaceMember:
         """Update a member's role. Requires Admin+ role.
 
@@ -254,6 +275,22 @@ class WorkspaceService:
                     entity_type="member",
                     entity_id=target_user_id,
                     changes={"role": {"old": old_role, "new": role.name.lower()}},
+                )
+
+            if self._notification:
+                await self._notification.notify(
+                    uow=uow,
+                    type_name=NotificationTypes.MEMBER_ROLE_CHANGED,
+                    workspace_id=workspace_id,
+                    actor_id=user_id,
+                    entity_type="workspace",
+                    entity_id=workspace_id,
+                    recipient_ids=[target_user_id],
+                    metadata={
+                        "workspace_name": workspace.name,
+                        "old_role": old_role,
+                        "new_role": role.name.lower(),
+                    },
                 )
 
             await uow.commit()
@@ -314,6 +351,19 @@ class WorkspaceService:
                     entity_type="member",
                     entity_id=target_user_id,
                     metadata={"role": target_member.role.name.lower()},
+                )
+
+            # Notify the removed user (not for self-leave)
+            if not is_self_leave and self._notification:
+                await self._notification.notify(
+                    uow=uow,
+                    type_name=NotificationTypes.MEMBER_REMOVED,
+                    workspace_id=workspace_id,
+                    actor_id=user_id,
+                    entity_type="workspace",
+                    entity_id=workspace_id,
+                    recipient_ids=[target_user_id],
+                    metadata={"workspace_name": workspace.name},
                 )
 
             await uow.commit()

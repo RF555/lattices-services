@@ -43,6 +43,10 @@ class ErrorCode(str, Enum):
     GROUP_MEMBER_NOT_FOUND = "GROUP_MEMBER_NOT_FOUND"
     ALREADY_A_GROUP_MEMBER = "ALREADY_A_GROUP_MEMBER"
 
+    # Notification errors
+    NOTIFICATION_NOT_FOUND = "NOTIFICATION_NOT_FOUND"
+    NOTIFICATION_RECIPIENT_NOT_FOUND = "NOTIFICATION_RECIPIENT_NOT_FOUND"
+
     # Conflict errors (409)
     DUPLICATE_TAG = "DUPLICATE_TAG"
     WORKSPACE_SLUG_TAKEN = "WORKSPACE_SLUG_TAKEN"
@@ -295,4 +299,28 @@ class GroupMemberNotFoundError(AppException):
             message="User is not a member of this group",
             status_code=404,
             details={"user_id": user_id},
+        )
+
+
+class NotificationNotFoundError(AppException):
+    """Notification not found."""
+
+    def __init__(self, notification_id: str) -> None:
+        super().__init__(
+            error_code=ErrorCode.NOTIFICATION_NOT_FOUND,
+            message=f"Notification not found: {notification_id}",
+            status_code=404,
+            details={"notification_id": notification_id},
+        )
+
+
+class NotificationRecipientNotFoundError(AppException):
+    """Notification recipient not found."""
+
+    def __init__(self, recipient_id: str) -> None:
+        super().__init__(
+            error_code=ErrorCode.NOTIFICATION_RECIPIENT_NOT_FOUND,
+            message=f"Notification recipient not found: {recipient_id}",
+            status_code=404,
+            details={"recipient_id": recipient_id},
         )

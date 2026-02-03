@@ -1,6 +1,7 @@
 """Group service layer with business logic."""
 
 from typing import Callable, List, Optional
+
 from uuid import UUID
 
 from core.exceptions import (
@@ -12,15 +13,22 @@ from core.exceptions import (
     WorkspaceNotFoundError,
 )
 from domain.entities.group import Group, GroupMember, GroupRole
+from domain.entities.notification import NotificationTypes
 from domain.entities.workspace import WorkspaceRole, has_permission
 from domain.repositories.unit_of_work import IUnitOfWork
+from domain.services.notification_service import NotificationService
 
 
 class GroupService:
     """Service layer for workspace group management."""
 
-    def __init__(self, uow_factory: Callable[[], IUnitOfWork]) -> None:
+    def __init__(
+        self,
+        uow_factory: Callable[[], IUnitOfWork],
+        notification_service: Optional["NotificationService"] = None,
+    ) -> None:
         self._uow_factory = uow_factory
+        self._notification = notification_service
 
     async def get_for_workspace(
         self, workspace_id: UUID, user_id: UUID
@@ -156,6 +164,7 @@ class GroupService:
         user_id: UUID,
         target_user_id: UUID,
         role: GroupRole = GroupRole.MEMBER,
+        actor_name: Optional[str] = None,
     ) -> GroupMember:
         """Add a member to a group. Requires workspace Admin+ or group Admin."""
         async with self._uow_factory() as uow:
@@ -184,6 +193,22 @@ class GroupService:
             )
 
             added = await uow.groups.add_member(member)
+
+            if self._notification:
+                await self._notification.notify(
+                    uow=uow,
+                    type_name=NotificationTypes.GROUP_MEMBER_ADDED,
+                    workspace_id=workspace_id,
+                    actor_id=user_id,
+                    entity_type="group",
+                    entity_id=group_id,
+                    recipient_ids=[target_user_id],
+                    metadata={
+                        "actor_name": actor_name or "",
+                        "group_name": group.name,
+                    },
+                )
+
             await uow.commit()
             return added
 

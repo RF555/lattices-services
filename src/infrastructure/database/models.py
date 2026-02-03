@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional
 from uuid import uuid4
 
-from sqlalchemy import Boolean, CheckConstraint, DateTime, ForeignKey, Integer, String, Text
+from sqlalchemy import Boolean, CheckConstraint, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB, UUID as PG_UUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
@@ -424,3 +424,132 @@ class GroupMemberModel(Base):
         back_populates="members",
     )
     user: Mapped["ProfileModel"] = relationship("ProfileModel")
+
+
+class NotificationTypeModel(Base):
+    """Notification type lookup model."""
+
+    __tablename__ = "notification_types"
+
+    id: Mapped[str] = mapped_column(
+        PG_UUID(as_uuid=True),
+        primary_key=True,
+        default=uuid4,
+    )
+    name: Mapped[str] = mapped_column(String(50), unique=True, nullable=False)
+    description: Mapped[Optional[str]] = mapped_column(Text)
+    template: Mapped[str] = mapped_column(Text, nullable=False)
+    default_channels: Mapped[Dict[str, Any]] = mapped_column(
+        JSONB, default=lambda: ["in_app"]
+    )
+    is_mandatory: Mapped[bool] = mapped_column(Boolean, default=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+
+class NotificationModel(Base):
+    """Notification event model."""
+
+    __tablename__ = "notifications"
+
+    id: Mapped[str] = mapped_column(
+        PG_UUID(as_uuid=True),
+        primary_key=True,
+        default=uuid4,
+    )
+    type_id: Mapped[str] = mapped_column(
+        PG_UUID(as_uuid=True),
+        ForeignKey("notification_types.id"),
+        nullable=False,
+    )
+    workspace_id: Mapped[str] = mapped_column(
+        PG_UUID(as_uuid=True),
+        ForeignKey("workspaces.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    actor_id: Mapped[str] = mapped_column(
+        PG_UUID(as_uuid=True),
+        ForeignKey("profiles.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    entity_type: Mapped[str] = mapped_column(String(50), nullable=False)
+    entity_id: Mapped[str] = mapped_column(PG_UUID(as_uuid=True), nullable=False)
+    metadata_: Mapped[Optional[Dict[str, Any]]] = mapped_column(
+        "metadata", JSONB
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, default=datetime.utcnow, nullable=False
+    )
+    expires_at: Mapped[Optional[datetime]] = mapped_column(DateTime)
+
+    # Relationships
+    notification_type: Mapped["NotificationTypeModel"] = relationship(
+        "NotificationTypeModel"
+    )
+    workspace: Mapped["WorkspaceModel"] = relationship("WorkspaceModel")
+    actor: Mapped["ProfileModel"] = relationship("ProfileModel")
+
+
+class NotificationRecipientModel(Base):
+    """Per-user notification delivery model."""
+
+    __tablename__ = "notification_recipients"
+    __table_args__ = (
+        UniqueConstraint("notification_id", "recipient_id"),
+    )
+
+    id: Mapped[str] = mapped_column(
+        PG_UUID(as_uuid=True),
+        primary_key=True,
+        default=uuid4,
+    )
+    notification_id: Mapped[str] = mapped_column(
+        PG_UUID(as_uuid=True),
+        ForeignKey("notifications.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    recipient_id: Mapped[str] = mapped_column(
+        PG_UUID(as_uuid=True),
+        ForeignKey("profiles.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    is_read: Mapped[bool] = mapped_column(Boolean, default=False)
+    read_at: Mapped[Optional[datetime]] = mapped_column(DateTime)
+    is_deleted: Mapped[bool] = mapped_column(Boolean, default=False)
+    deleted_at: Mapped[Optional[datetime]] = mapped_column(DateTime)
+
+    # Relationships
+    notification: Mapped["NotificationModel"] = relationship("NotificationModel")
+    recipient: Mapped["ProfileModel"] = relationship("ProfileModel")
+
+
+class NotificationPreferenceModel(Base):
+    """User notification preference model."""
+
+    __tablename__ = "notification_preferences"
+    __table_args__ = (
+        UniqueConstraint(
+            "user_id", "workspace_id", "notification_type", "channel"
+        ),
+    )
+
+    id: Mapped[str] = mapped_column(
+        PG_UUID(as_uuid=True),
+        primary_key=True,
+        default=uuid4,
+    )
+    user_id: Mapped[str] = mapped_column(
+        PG_UUID(as_uuid=True),
+        ForeignKey("profiles.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    workspace_id: Mapped[Optional[str]] = mapped_column(
+        PG_UUID(as_uuid=True),
+        ForeignKey("workspaces.id", ondelete="CASCADE"),
+    )
+    notification_type: Mapped[Optional[str]] = mapped_column(String(50))
+    channel: Mapped[str] = mapped_column(
+        String(20), nullable=False, default="in_app"
+    )
+    enabled: Mapped[bool] = mapped_column(Boolean, default=True)

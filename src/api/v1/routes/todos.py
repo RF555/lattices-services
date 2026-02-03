@@ -135,6 +135,7 @@ async def create_todo(
         description=body.description,
         parent_id=body.parent_id,
         workspace_id=body.workspace_id,
+        actor_name=user.email,
     )
     return TodoDetailResponse(data=_build_todo_response(todo, []))
 
@@ -180,6 +181,7 @@ async def update_todo(
         is_completed=body.is_completed,
         parent_id=parent_id,
         position=body.position,
+        actor_name=user.email,
     )
     tags = await tag_service.get_tags_for_todo(todo_id, user.id)
     child_counts = await todo_service.get_child_counts_batch([todo_id])
@@ -204,7 +206,7 @@ async def delete_todo(
     service: TodoService = Depends(get_todo_service),
 ) -> None:
     """Delete a task and all its descendants (cascade delete)."""
-    await service.delete(todo_id, user.id)
+    await service.delete(todo_id, user.id, actor_name=user.email)
     return None
 
 
