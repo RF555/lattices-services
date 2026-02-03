@@ -18,7 +18,7 @@ class TodoBase(BaseModel):
 class TodoCreate(TodoBase):
     """Schema for creating a Todo."""
 
-    pass
+    workspace_id: Optional[UUID] = None
 
 
 class TodoUpdate(BaseModel):

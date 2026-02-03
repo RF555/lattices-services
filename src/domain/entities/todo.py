@@ -14,6 +14,7 @@ class Todo:
     title: str
     id: UUID = field(default_factory=uuid4)
     parent_id: Optional[UUID] = None
+    workspace_id: Optional[UUID] = None
     description: Optional[str] = None
     is_completed: bool = False
     position: int = 0

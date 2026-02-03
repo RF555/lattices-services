@@ -19,13 +19,34 @@ class ErrorCode(str, Enum):
     TASK_NOT_FOUND = "TASK_NOT_FOUND"
     TAG_NOT_FOUND = "TAG_NOT_FOUND"
     USER_NOT_FOUND = "USER_NOT_FOUND"
+    WORKSPACE_NOT_FOUND = "WORKSPACE_NOT_FOUND"
 
     # Validation errors (400)
     VALIDATION_ERROR = "VALIDATION_ERROR"
     CIRCULAR_REFERENCE = "CIRCULAR_REFERENCE"
+    INVALID_ROLE = "INVALID_ROLE"
+    LAST_OWNER = "LAST_OWNER"
+
+    # Authorization errors (403) - workspace-specific
+    NOT_A_MEMBER = "NOT_A_MEMBER"
+    INSUFFICIENT_PERMISSIONS = "INSUFFICIENT_PERMISSIONS"
+
+    # Invitation errors
+    INVITATION_NOT_FOUND = "INVITATION_NOT_FOUND"
+    INVITATION_EXPIRED = "INVITATION_EXPIRED"
+    INVITATION_ALREADY_ACCEPTED = "INVITATION_ALREADY_ACCEPTED"
+    DUPLICATE_INVITATION = "DUPLICATE_INVITATION"
+    INVITATION_EMAIL_MISMATCH = "INVITATION_EMAIL_MISMATCH"
+
+    # Group errors
+    GROUP_NOT_FOUND = "GROUP_NOT_FOUND"
+    GROUP_MEMBER_NOT_FOUND = "GROUP_MEMBER_NOT_FOUND"
+    ALREADY_A_GROUP_MEMBER = "ALREADY_A_GROUP_MEMBER"
 
     # Conflict errors (409)
     DUPLICATE_TAG = "DUPLICATE_TAG"
+    WORKSPACE_SLUG_TAKEN = "WORKSPACE_SLUG_TAKEN"
+    ALREADY_A_MEMBER = "ALREADY_A_MEMBER"
 
     # Rate limiting (429)
     RATE_LIMIT_EXCEEDED = "RATE_LIMIT_EXCEEDED"
@@ -110,4 +131,168 @@ class CircularReferenceError(AppException):
             error_code=ErrorCode.CIRCULAR_REFERENCE,
             message=message,
             status_code=400,
+        )
+
+
+class WorkspaceNotFoundError(AppException):
+    """Workspace not found."""
+
+    def __init__(self, workspace_id: str) -> None:
+        super().__init__(
+            error_code=ErrorCode.WORKSPACE_NOT_FOUND,
+            message=f"Workspace not found: {workspace_id}",
+            status_code=404,
+            details={"workspace_id": workspace_id},
+        )
+
+
+class NotAMemberError(AppException):
+    """User is not a member of the workspace."""
+
+    def __init__(self, workspace_id: str) -> None:
+        super().__init__(
+            error_code=ErrorCode.NOT_A_MEMBER,
+            message="You are not a member of this workspace",
+            status_code=403,
+            details={"workspace_id": workspace_id},
+        )
+
+
+class InsufficientPermissionsError(AppException):
+    """User does not have sufficient permissions."""
+
+    def __init__(self, required_role: str = "admin") -> None:
+        super().__init__(
+            error_code=ErrorCode.INSUFFICIENT_PERMISSIONS,
+            message=f"Insufficient permissions. Required role: {required_role}",
+            status_code=403,
+            details={"required_role": required_role},
+        )
+
+
+class LastOwnerError(AppException):
+    """Cannot remove or demote the last owner of a workspace."""
+
+    def __init__(self) -> None:
+        super().__init__(
+            error_code=ErrorCode.LAST_OWNER,
+            message="Cannot remove or demote the last owner of a workspace",
+            status_code=400,
+        )
+
+
+class WorkspaceSlugTakenError(AppException):
+    """Workspace slug is already taken."""
+
+    def __init__(self, slug: str) -> None:
+        super().__init__(
+            error_code=ErrorCode.WORKSPACE_SLUG_TAKEN,
+            message=f"Workspace slug already taken: {slug}",
+            status_code=409,
+            details={"slug": slug},
+        )
+
+
+class AlreadyAMemberError(AppException):
+    """User is already a member of the workspace."""
+
+    def __init__(self, user_id: str) -> None:
+        super().__init__(
+            error_code=ErrorCode.ALREADY_A_MEMBER,
+            message="User is already a member of this workspace",
+            status_code=409,
+            details={"user_id": user_id},
+        )
+
+
+class InvitationNotFoundError(AppException):
+    """Invitation not found."""
+
+    def __init__(self, invitation_id: str = "") -> None:
+        super().__init__(
+            error_code=ErrorCode.INVITATION_NOT_FOUND,
+            message="Invitation not found",
+            status_code=404,
+            details={"invitation_id": invitation_id} if invitation_id else None,
+        )
+
+
+class InvitationExpiredError(AppException):
+    """Invitation has expired."""
+
+    def __init__(self) -> None:
+        super().__init__(
+            error_code=ErrorCode.INVITATION_EXPIRED,
+            message="This invitation has expired",
+            status_code=400,
+        )
+
+
+class InvitationAlreadyAcceptedError(AppException):
+    """Invitation has already been accepted."""
+
+    def __init__(self) -> None:
+        super().__init__(
+            error_code=ErrorCode.INVITATION_ALREADY_ACCEPTED,
+            message="This invitation has already been accepted",
+            status_code=400,
+        )
+
+
+class DuplicateInvitationError(AppException):
+    """A pending invitation already exists for this email and workspace."""
+
+    def __init__(self, email: str) -> None:
+        super().__init__(
+            error_code=ErrorCode.DUPLICATE_INVITATION,
+            message="A pending invitation already exists for this email",
+            status_code=409,
+            details={"email": email},
+        )
+
+
+class InvitationEmailMismatchError(AppException):
+    """The user's email does not match the invitation email."""
+
+    def __init__(self) -> None:
+        super().__init__(
+            error_code=ErrorCode.INVITATION_EMAIL_MISMATCH,
+            message="Your email does not match the invitation email",
+            status_code=403,
+        )
+
+
+class GroupNotFoundError(AppException):
+    """Group not found."""
+
+    def __init__(self, group_id: str) -> None:
+        super().__init__(
+            error_code=ErrorCode.GROUP_NOT_FOUND,
+            message=f"Group not found: {group_id}",
+            status_code=404,
+            details={"group_id": group_id},
+        )
+
+
+class AlreadyAGroupMemberError(AppException):
+    """User is already a member of the group."""
+
+    def __init__(self, user_id: str) -> None:
+        super().__init__(
+            error_code=ErrorCode.ALREADY_A_GROUP_MEMBER,
+            message="User is already a member of this group",
+            status_code=409,
+            details={"user_id": user_id},
+        )
+
+
+class GroupMemberNotFoundError(AppException):
+    """Group member not found."""
+
+    def __init__(self, user_id: str) -> None:
+        super().__init__(
+            error_code=ErrorCode.GROUP_MEMBER_NOT_FOUND,
+            message="User is not a member of this group",
+            status_code=404,
+            details={"user_id": user_id},
         )

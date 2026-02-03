@@ -17,6 +17,16 @@ class ITagRepository(Protocol):
         """Get all tags for a user."""
         ...
 
+    async def get_all_for_workspace(self, workspace_id: UUID) -> List[Tag]:
+        """Get all tags for a workspace."""
+        ...
+
+    async def get_by_name_in_workspace(
+        self, workspace_id: UUID, name: str
+    ) -> Optional[Tag]:
+        """Get a tag by name within a workspace."""
+        ...
+
     async def get_for_todo(self, todo_id: UUID) -> List[Tag]:
         """Get all tags attached to a todo."""
         ...

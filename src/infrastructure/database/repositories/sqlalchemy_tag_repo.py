@@ -34,6 +34,28 @@ class SQLAlchemyTagRepository:
         result = await self._session.execute(stmt)
         return [self._to_entity(model) for model in result.scalars()]
 
+    async def get_all_for_workspace(self, workspace_id: UUID) -> List[Tag]:
+        """Get all tags for a workspace."""
+        stmt = (
+            select(TagModel)
+            .where(TagModel.workspace_id == workspace_id)
+            .order_by(TagModel.name)
+        )
+        result = await self._session.execute(stmt)
+        return [self._to_entity(model) for model in result.scalars()]
+
+    async def get_by_name_in_workspace(
+        self, workspace_id: UUID, name: str
+    ) -> Optional[Tag]:
+        """Get a tag by name within a workspace."""
+        stmt = select(TagModel).where(
+            TagModel.workspace_id == workspace_id,
+            TagModel.name == name,
+        )
+        result = await self._session.execute(stmt)
+        model = result.scalar_one_or_none()
+        return self._to_entity(model) if model else None
+
     async def get_for_todo(self, todo_id: UUID) -> List[Tag]:
         """Get all tags attached to a todo."""
         stmt = (
@@ -147,7 +169,10 @@ class SQLAlchemyTagRepository:
     def _to_entity(self, model: TagModel) -> Tag:
         """Convert ORM model to domain entity."""
         return Tag(
-            id=model.id,            user_id=model.user_id,            name=model.name,
+            id=model.id,
+            user_id=model.user_id,
+            workspace_id=model.workspace_id,
+            name=model.name,
             color_hex=model.color_hex,
             created_at=model.created_at,
         )
@@ -157,6 +182,7 @@ class SQLAlchemyTagRepository:
         return TagModel(
             id=entity.id,
             user_id=entity.user_id,
+            workspace_id=entity.workspace_id,
             name=entity.name,
             color_hex=entity.color_hex,
             created_at=entity.created_at,

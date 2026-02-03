@@ -4,8 +4,12 @@ from typing import Any, Optional
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from infrastructure.database.repositories.sqlalchemy_activity_repo import SQLAlchemyActivityRepository
+from infrastructure.database.repositories.sqlalchemy_group_repo import SQLAlchemyGroupRepository
 from infrastructure.database.repositories.sqlalchemy_todo_repo import SQLAlchemyTodoRepository
 from infrastructure.database.repositories.sqlalchemy_tag_repo import SQLAlchemyTagRepository
+from infrastructure.database.repositories.sqlalchemy_invitation_repo import SQLAlchemyInvitationRepository
+from infrastructure.database.repositories.sqlalchemy_workspace_repo import SQLAlchemyWorkspaceRepository
 
 
 class SQLAlchemyUnitOfWork:
@@ -28,6 +32,34 @@ class SQLAlchemyUnitOfWork:
         if not self._session:
             raise RuntimeError("UnitOfWork not initialized. Use as context manager.")
         return SQLAlchemyTagRepository(self._session)
+
+    @property
+    def invitations(self) -> SQLAlchemyInvitationRepository:
+        """Get invitation repository."""
+        if not self._session:
+            raise RuntimeError("UnitOfWork not initialized. Use as context manager.")
+        return SQLAlchemyInvitationRepository(self._session)
+
+    @property
+    def activities(self) -> SQLAlchemyActivityRepository:
+        """Get activity log repository."""
+        if not self._session:
+            raise RuntimeError("UnitOfWork not initialized. Use as context manager.")
+        return SQLAlchemyActivityRepository(self._session)
+
+    @property
+    def groups(self) -> SQLAlchemyGroupRepository:
+        """Get group repository."""
+        if not self._session:
+            raise RuntimeError("UnitOfWork not initialized. Use as context manager.")
+        return SQLAlchemyGroupRepository(self._session)
+
+    @property
+    def workspaces(self) -> SQLAlchemyWorkspaceRepository:
+        """Get workspace repository."""
+        if not self._session:
+            raise RuntimeError("UnitOfWork not initialized. Use as context manager.")
+        return SQLAlchemyWorkspaceRepository(self._session)
 
     async def commit(self) -> None:
         """Commit the current transaction."""

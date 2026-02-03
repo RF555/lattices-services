@@ -33,6 +33,16 @@ class SQLAlchemyTodoRepository:
         result = await self._session.execute(stmt)
         return [self._to_entity(model) for model in result.scalars()]
 
+    async def get_all_for_workspace(self, workspace_id: UUID) -> List[Todo]:
+        """Get all todos for a workspace (flat list for tree assembly)."""
+        stmt = (
+            select(TodoModel)
+            .where(TodoModel.workspace_id == workspace_id)
+            .order_by(TodoModel.position, TodoModel.created_at)
+        )
+        result = await self._session.execute(stmt)
+        return [self._to_entity(model) for model in result.scalars()]
+
     async def get_root_todos(self, user_id: UUID) -> List[Todo]:
         """Get all root-level todos (no parent) for a user."""
         stmt = (
@@ -122,7 +132,11 @@ class SQLAlchemyTodoRepository:
     def _to_entity(self, model: TodoModel) -> Todo:
         """Convert ORM model to domain entity."""
         return Todo(
-            id=model.id,            user_id=model.user_id,            parent_id=model.parent_id,            title=model.title,
+            id=model.id,
+            user_id=model.user_id,
+            parent_id=model.parent_id,
+            workspace_id=model.workspace_id,
+            title=model.title,
             description=model.description,
             is_completed=model.is_completed,
             position=model.position,
@@ -137,6 +151,7 @@ class SQLAlchemyTodoRepository:
             id=entity.id,
             user_id=entity.user_id,
             parent_id=entity.parent_id,
+            workspace_id=entity.workspace_id,
             title=entity.title,
             description=entity.description,
             is_completed=entity.is_completed,

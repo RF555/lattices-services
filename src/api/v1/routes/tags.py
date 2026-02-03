@@ -1,9 +1,10 @@
 """Tag API routes."""
 
 from datetime import datetime
+from typing import Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Request, status
+from fastapi import APIRouter, Depends, Query, Request, status
 
 from api.dependencies.auth import CurrentUser
 from api.v1.dependencies import get_tag_service
@@ -32,9 +33,10 @@ async def list_tags(
     request: Request,
     user: CurrentUser,
     service: TagService = Depends(get_tag_service),
+    workspace_id: Optional[UUID] = Query(None, description="Filter by workspace ID"),
 ) -> TagListResponse:
     """Get all tags for the authenticated user, including usage counts."""
-    tags_with_counts = await service.get_all_for_user(user.id)
+    tags_with_counts = await service.get_all_for_user(user.id, workspace_id=workspace_id)
     return TagListResponse(
         data=[
             TagResponse(
@@ -71,6 +73,7 @@ async def create_tag(
         user_id=user.id,
         name=body.name,
         color_hex=body.color_hex,
+        workspace_id=body.workspace_id,
     )
     return TagDetailResponse(
         data=TagResponse(

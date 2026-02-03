@@ -40,14 +40,15 @@ async def list_todos(
     tag_service: TagService = Depends(get_tag_service),
     include_completed: bool = Query(True, description="Include completed todos"),
     tag_id: Optional[UUID] = Query(None, description="Filter by tag ID"),
+    workspace_id: Optional[UUID] = Query(None, description="Filter by workspace ID"),
 ) -> TodoListResponse:
     """
     Get all tasks for the authenticated user as a flat list.
 
     The frontend assembles the tree structure using `parent_id` references.
-    Supports filtering by completion status and tag.
+    Supports filtering by completion status, tag, and workspace.
     """
-    todos = await todo_service.get_all_for_user(user.id)
+    todos = await todo_service.get_all_for_user(user.id, workspace_id=workspace_id)
 
     # Filter by completion status first
     filtered_todos = todos
@@ -133,6 +134,7 @@ async def create_todo(
         title=body.title,
         description=body.description,
         parent_id=body.parent_id,
+        workspace_id=body.workspace_id,
     )
     return TodoDetailResponse(data=_build_todo_response(todo, []))
 

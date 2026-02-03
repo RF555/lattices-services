@@ -17,6 +17,10 @@ class ITodoRepository(Protocol):
         """Get all todos for a user (flat list)."""
         ...
 
+    async def get_all_for_workspace(self, workspace_id: UUID) -> List[Todo]:
+        """Get all todos for a workspace (flat list)."""
+        ...
+
     async def get_root_todos(self, user_id: UUID) -> List[Todo]:
         """Get all root-level todos (no parent) for a user."""
         ...

@@ -22,7 +22,7 @@ class TagBase(BaseModel):
 class TagCreate(TagBase):
     """Schema for creating a Tag."""
 
-    pass
+    workspace_id: Optional[UUID] = None
 
 
 class TagUpdate(BaseModel):

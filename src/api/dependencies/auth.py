@@ -1,8 +1,9 @@
 """Authentication dependencies for FastAPI."""
 
 from typing import Annotated, Optional
+from uuid import UUID
 
-from fastapi import Depends, Request
+from fastapi import Depends, Header, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from core.exceptions import AuthenticationError, ErrorCode
@@ -78,3 +79,18 @@ async def get_optional_user(
 # Type alias for convenience in route handlers
 CurrentUser = Annotated[TokenUser, Depends(get_current_user)]
 OptionalUser = Annotated[Optional[TokenUser], Depends(get_optional_user)]
+
+
+async def get_workspace_id_from_header(
+    x_workspace_id: Annotated[Optional[str], Header()] = None,
+) -> Optional[UUID]:
+    """Extract workspace ID from X-Workspace-Id header if present."""
+    if x_workspace_id:
+        try:
+            return UUID(x_workspace_id)
+        except ValueError:
+            return None
+    return None
+
+
+WorkspaceId = Annotated[Optional[UUID], Depends(get_workspace_id_from_header)]
