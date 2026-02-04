@@ -1,15 +1,17 @@
 # Lattices API
 
-**Hierarchical Task Management System Backend**
+**Multi-User Hierarchical Task Management System Backend**
 
 [![Python 3.11+](https://img.shields.io/badge/Python-3.11+-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.109+-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
 [![SQLAlchemy 2.0](https://img.shields.io/badge/SQLAlchemy-2.0+-D71F00?logo=sqlalchemy&logoColor=white)](https://www.sqlalchemy.org/)
 [![Pydantic v2](https://img.shields.io/badge/Pydantic-v2-E92063?logo=pydantic&logoColor=white)](https://docs.pydantic.dev/)
 [![Code style: Ruff](https://img.shields.io/badge/Code_style-Ruff-D7FF64?logo=ruff&logoColor=black)](https://docs.astral.sh/ruff/)
+[![Tests: 303](https://img.shields.io/badge/Tests-303_passing-brightgreen)](tests/)
+[![Coverage: 86%](https://img.shields.io/badge/Coverage-86%25-brightgreen)](tests/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-RESTful API for managing hierarchical tasks with infinite nesting, customizable tags, and tree-based organization. Built with Clean Architecture principles for maintainability and testability.
+RESTful API for managing hierarchical tasks with infinite nesting, multi-user workspaces, role-based access control, real-time notifications, and activity audit trails. Built with Clean Architecture principles for maintainability and testability.
 
 ---
 
@@ -32,14 +34,47 @@ RESTful API for managing hierarchical tasks with infinite nesting, customizable 
 
 ## Features
 
+### Task Management
 - **Hierarchical Tasks** -- Create tasks with unlimited nesting depth using an adjacency list model
 - **Flat Fetch** -- Retrieve all tasks in a single query; frontend assembles the tree via `parent_id`
+- **Cycle Detection** -- Prevents circular parent-child relationships
+- **Child Progress Counts** -- Backend-computed `child_count` and `completed_child_count` on every task response
 - **Tag System** -- Organize tasks with customizable color-coded tags (many-to-many)
-- **JWT Authentication** -- Secure endpoints with token-based auth via an abstracted provider
-- **Rate Limiting** -- Per-IP rate limits (30/min reads, 10/min writes) with proper `429` responses
+
+### Multi-User Workspaces
+- **Workspace Management** -- Create shared workspaces with unique slugs for team collaboration
+- **Role-Based Access Control** -- Four hierarchical roles: Viewer, Member, Admin, Owner
+- **Ownership Transfer** -- Owners can transfer workspace ownership to other admins
+- **Workspace-Scoped Todos & Tags** -- Tasks and tags can optionally belong to a workspace (backward-compatible with personal tasks)
+
+### Invitations
+- **Email-Based Invitations** -- Invite users by email with a secure one-time token
+- **Role Assignment** -- Specify the invitee's role at invitation time
+- **Token Security** -- SHA-256 hashed tokens stored in DB; raw token returned once at creation
+- **Expiry & Revocation** -- Invitations expire after 7 days and can be revoked by admins
+
+### Groups
+- **Workspace Sub-Teams** -- Organize members into groups within a workspace
+- **Group Roles** -- Group-level admin and member roles, separate from workspace roles
+- **Dual Permission Model** -- Workspace admins bypass group-level permission checks
+
+### Notifications
+- **Event-Driven** -- Automatic notifications for task changes, member events, invitations
+- **Per-User Preferences** -- Control notifications by channel (in-app, email), type, and workspace
+- **Deduplication** -- 5-minute deduplication window prevents notification spam
+- **Cursor-Based Pagination** -- Efficient feed retrieval for large notification volumes
+- **Auto-Cleanup** -- Background task expires notifications after 90 days
+
+### Activity Feed
+- **Immutable Audit Trail** -- Every workspace action is logged with actor, entity, and change diffs
+- **Entity History** -- Query the full change history of any specific entity
+- **Change Diffs** -- Captures before/after values for all modified fields
+
+### Infrastructure
+- **JWT Authentication** -- Supports both HS256 (dev) and ES256/JWKS (Supabase production)
+- **Rate Limiting** -- Per-IP rate limits (30/min reads, 10/min writes) with `429` responses
 - **Structured Logging** -- JSON logs in production, pretty console in development (structlog)
 - **Security Headers** -- X-Content-Type-Options, X-Frame-Options, HSTS, Request ID tracking
-- **Child Progress Counts** -- Backend-computed `child_count` and `completed_child_count` on every task response
 - **Batch Optimized** -- N+1 query elimination with batch tag and child count fetching
 - **GZip + ORJSON** -- Compressed responses and fast JSON serialization
 
@@ -55,7 +90,7 @@ RESTful API for managing hierarchical tasks with infinite nesting, customizable 
 | **Database** | PostgreSQL (asyncpg) |
 | **Migrations** | Alembic |
 | **Validation** | Pydantic v2 |
-| **Auth** | JWT (python-jose) |
+| **Auth** | JWT (python-jose), HS256 + ES256/JWKS |
 | **Logging** | structlog |
 | **Rate Limiting** | slowapi |
 | **Serialization** | orjson |
@@ -79,16 +114,29 @@ src/
 
 **Key patterns:**
 
-- **Repository Pattern** -- Protocol-based interfaces (`ITodoRepository`, `ITagRepository`) with SQLAlchemy implementations
+- **Repository Pattern** -- Protocol-based interfaces with SQLAlchemy implementations
 - **Unit of Work** -- Transaction management via `SQLAlchemyUnitOfWork` context manager
 - **Dependency Injection** -- FastAPI's `Depends()` with factory functions
 - **Domain Entities** -- Pure Python dataclasses, independent of ORM
+- **Event-Driven Side Effects** -- Services call `ActivityService.log()` and `NotificationService.notify()` within the same UoW transaction
 
 ```
-Request → Middleware → Route → Service → UoW → Repository → Database
-                        ↓
-                    Pydantic Schema (validation + serialization)
+Request → Middleware → Route → Auth Dependency → Service → UoW → Repository → Database
+                        ↓                          ↓
+                  Pydantic Schema          Activity + Notification
+              (validation + response)       (audit + side effects)
 ```
+
+### Workspace Role Hierarchy
+
+```
+VIEWER (10) → MEMBER (20) → ADMIN (30) → OWNER (40)
+  read-only     create/edit     manage members     full control
+                own content     invitations         delete workspace
+                                groups              transfer ownership
+```
+
+Permission checks use `user_role >= required_role` for hierarchical enforcement.
 
 ---
 
@@ -176,7 +224,6 @@ All configuration is loaded from environment variables (or `.env` file). See `.e
 | `SUPABASE_URL` | Supabase project URL | -- | **Yes** |
 | `SUPABASE_ANON_KEY` | Supabase anonymous/public key | -- | **Yes** |
 | `SUPABASE_SERVICE_ROLE_KEY` | Supabase service role key | -- | **Yes** |
-| `SUPABASE_JWKS_URL` | Supabase JWKS endpoint for ES256 JWT validation | -- | No |
 
 > **Note:** `DATABASE_URL` accepts both `postgresql://` and `postgresql+asyncpg://` schemes. The app auto-converts to `postgresql+asyncpg://` at runtime via the `async_database_url` computed property.
 
@@ -192,25 +239,6 @@ Once the server is running, interactive API docs are available at:
 | **ReDoc** | [http://localhost:8000/redoc](http://localhost:8000/redoc) |
 | **OpenAPI JSON** | [http://localhost:8000/openapi.json](http://localhost:8000/openapi.json) |
 
-### Endpoints Overview
-
-| Method | Endpoint | Description | Rate Limit |
-|---|---|---|---|
-| `GET` | `/health` | Basic health check | -- |
-| `GET` | `/health/detailed` | Health check with DB status | -- |
-| `GET` | `/api/v1/todos` | List all tasks | 30/min |
-| `POST` | `/api/v1/todos` | Create a task | 10/min |
-| `GET` | `/api/v1/todos/{id}` | Get a task | 30/min |
-| `PATCH` | `/api/v1/todos/{id}` | Update a task | 10/min |
-| `DELETE` | `/api/v1/todos/{id}` | Delete a task (cascade) | 10/min |
-| `GET` | `/api/v1/tags` | List all tags | 30/min |
-| `POST` | `/api/v1/tags` | Create a tag | 10/min |
-| `PATCH` | `/api/v1/tags/{id}` | Update a tag | 10/min |
-| `DELETE` | `/api/v1/tags/{id}` | Delete a tag | 10/min |
-| `GET` | `/api/v1/todos/{id}/tags` | Get tags for a task | 30/min |
-| `POST` | `/api/v1/todos/{id}/tags` | Attach a tag to a task | 10/min |
-| `DELETE` | `/api/v1/todos/{id}/tags/{tag_id}` | Detach a tag from a task | 10/min |
-
 ### Authentication
 
 All endpoints except `/health` require a JWT token:
@@ -219,15 +247,126 @@ All endpoints except `/health` require a JWT token:
 Authorization: Bearer <your_token>
 ```
 
+### Endpoints Overview
+
+#### Health
+
+| Method | Endpoint | Description |
+|---|---|---|
+| `GET` | `/health` | Basic health check |
+| `GET` | `/health/detailed` | Health check with DB status |
+
+#### Todos
+
+| Method | Endpoint | Description | Rate Limit |
+|---|---|---|---|
+| `GET` | `/api/v1/todos` | List tasks (filter by workspace, status, tag) | 30/min |
+| `POST` | `/api/v1/todos` | Create a task | 10/min |
+| `GET` | `/api/v1/todos/{id}` | Get a task with tags | 30/min |
+| `PATCH` | `/api/v1/todos/{id}` | Update a task | 10/min |
+| `DELETE` | `/api/v1/todos/{id}` | Delete a task (cascade children) | 10/min |
+
+#### Tags
+
+| Method | Endpoint | Description | Rate Limit |
+|---|---|---|---|
+| `GET` | `/api/v1/tags` | List tags with usage counts | 30/min |
+| `POST` | `/api/v1/tags` | Create a tag | 10/min |
+| `PATCH` | `/api/v1/tags/{id}` | Update a tag | 10/min |
+| `DELETE` | `/api/v1/tags/{id}` | Delete a tag | 10/min |
+| `GET` | `/api/v1/todos/{id}/tags` | Get tags for a task | 30/min |
+| `POST` | `/api/v1/todos/{id}/tags` | Attach a tag to a task | 10/min |
+| `DELETE` | `/api/v1/todos/{id}/tags/{tag_id}` | Detach a tag | 10/min |
+
+#### Workspaces
+
+| Method | Endpoint | Description |
+|---|---|---|
+| `GET` | `/api/v1/workspaces` | List user's workspaces |
+| `POST` | `/api/v1/workspaces` | Create workspace (creator = Owner) |
+| `GET` | `/api/v1/workspaces/{id}` | Get workspace details |
+| `PATCH` | `/api/v1/workspaces/{id}` | Update workspace (Admin+) |
+| `DELETE` | `/api/v1/workspaces/{id}` | Delete workspace (Owner only) |
+| `GET` | `/api/v1/workspaces/{id}/members` | List members |
+| `POST` | `/api/v1/workspaces/{id}/members` | Add member (Admin+) |
+| `PATCH` | `/api/v1/workspaces/{id}/members/{uid}` | Update member role (Admin+) |
+| `DELETE` | `/api/v1/workspaces/{id}/members/{uid}` | Remove member or leave |
+| `POST` | `/api/v1/workspaces/{id}/transfer-ownership` | Transfer ownership (Owner only) |
+
+#### Invitations
+
+| Method | Endpoint | Description |
+|---|---|---|
+| `POST` | `/api/v1/workspaces/{id}/invitations` | Create invitation (Admin+) |
+| `GET` | `/api/v1/workspaces/{id}/invitations` | List workspace invitations |
+| `DELETE` | `/api/v1/workspaces/{id}/invitations/{inv_id}` | Revoke invitation (Admin+) |
+| `POST` | `/api/v1/invitations/accept` | Accept invitation with token |
+| `GET` | `/api/v1/invitations/pending` | Get pending invitations for current user |
+
+#### Groups
+
+| Method | Endpoint | Description |
+|---|---|---|
+| `GET` | `/api/v1/workspaces/{id}/groups` | List groups |
+| `POST` | `/api/v1/workspaces/{id}/groups` | Create group (Admin+) |
+| `PATCH` | `/api/v1/workspaces/{id}/groups/{gid}` | Update group |
+| `DELETE` | `/api/v1/workspaces/{id}/groups/{gid}` | Delete group (Admin+) |
+| `GET` | `/api/v1/workspaces/{id}/groups/{gid}/members` | List group members |
+| `POST` | `/api/v1/workspaces/{id}/groups/{gid}/members` | Add group member |
+| `DELETE` | `/api/v1/workspaces/{id}/groups/{gid}/members/{uid}` | Remove group member |
+
+#### Notifications
+
+| Method | Endpoint | Description |
+|---|---|---|
+| `GET` | `/api/v1/workspaces/{id}/notifications` | List workspace notifications |
+| `GET` | `/api/v1/workspaces/{id}/notifications/unread-count` | Get unread count |
+| `PATCH` | `/api/v1/workspaces/{id}/notifications/{rid}/read` | Mark as read |
+| `PATCH` | `/api/v1/workspaces/{id}/notifications/{rid}/unread` | Mark as unread |
+| `POST` | `/api/v1/workspaces/{id}/notifications/mark-all-read` | Mark all as read |
+| `DELETE` | `/api/v1/workspaces/{id}/notifications/{rid}` | Soft-delete notification |
+| `GET` | `/api/v1/users/me/notifications` | List all notifications (all workspaces) |
+| `GET` | `/api/v1/users/me/notifications/unread-count` | Total unread count |
+| `POST` | `/api/v1/users/me/notifications/mark-all-read` | Mark all read (all workspaces) |
+| `GET` | `/api/v1/users/me/notification-preferences` | Get preferences |
+| `PUT` | `/api/v1/users/me/notification-preferences` | Update preference |
+| `GET` | `/api/v1/users/me/notification-types` | List notification types |
+
+#### Activity Feed
+
+| Method | Endpoint | Description |
+|---|---|---|
+| `GET` | `/api/v1/workspaces/{id}/activity` | Get workspace activity feed |
+| `GET` | `/api/v1/workspaces/{id}/activity/{entity_type}/{entity_id}` | Get entity history |
+
 ### Example Requests
 
-**Create a task:**
+**Create a workspace:**
+
+```bash
+curl -X POST http://localhost:8000/api/v1/workspaces \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{"name": "My Team", "description": "Team workspace"}'
+```
+
+**Invite a member:**
+
+```bash
+curl -X POST http://localhost:8000/api/v1/workspaces/<workspace_id>/invitations \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{"email": "teammate@example.com", "role": "member"}'
+```
+
+**Create a workspace-scoped task:**
 
 ```bash
 curl -X POST http://localhost:8000/api/v1/todos \
   -H "Authorization: Bearer <token>" \
   -H "Content-Type: application/json" \
-  -d '{"title": "Buy groceries", "description": "Weekly shopping"}'
+  -H "X-Workspace-ID: <workspace_id>" \
+  -d '{"title": "Team standup notes", "workspace_id": "<workspace_id>"}'
 ```
 
 **Create a child task:**
@@ -237,22 +376,6 @@ curl -X POST http://localhost:8000/api/v1/todos \
   -H "Authorization: Bearer <token>" \
   -H "Content-Type: application/json" \
   -d '{"title": "Buy milk", "parent_id": "<parent_task_id>"}'
-```
-
-**Create and attach a tag:**
-
-```bash
-# Create tag
-curl -X POST http://localhost:8000/api/v1/tags \
-  -H "Authorization: Bearer <token>" \
-  -H "Content-Type: application/json" \
-  -d '{"name": "urgent", "color_hex": "#EF4444"}'
-
-# Attach to task
-curl -X POST http://localhost:8000/api/v1/todos/<todo_id>/tags \
-  -H "Authorization: Bearer <token>" \
-  -H "Content-Type: application/json" \
-  -d '{"tag_id": "<tag_id>"}'
 ```
 
 ---
@@ -277,11 +400,21 @@ lattices-services/
 │   │       ├── dependencies.py          # DI factories (services, UoW)
 │   │       ├── routes/
 │   │       │   ├── todos.py             # Todo CRUD routes
-│   │       │   └── tags.py              # Tag CRUD + Todo-Tag routes
+│   │       │   ├── tags.py              # Tag CRUD + Todo-Tag routes
+│   │       │   ├── workspaces.py        # Workspace CRUD + member management
+│   │       │   ├── groups.py            # Group CRUD + group members
+│   │       │   ├── invitations.py       # Invitation create/accept/revoke
+│   │       │   ├── notifications.py     # Notification feed + preferences
+│   │       │   └── activity.py          # Activity feed + entity history
 │   │       └── schemas/
 │   │           ├── common.py            # Shared response schemas
 │   │           ├── todo.py              # Todo request/response schemas
-│   │           └── tag.py               # Tag request/response schemas
+│   │           ├── tag.py               # Tag schemas
+│   │           ├── workspace.py         # Workspace + member schemas
+│   │           ├── group.py             # Group schemas
+│   │           ├── invitation.py        # Invitation schemas
+│   │           ├── notification.py      # Notification + preference schemas
+│   │           └── activity.py          # Activity log schemas
 │   ├── core/
 │   │   ├── config.py                    # Pydantic Settings configuration
 │   │   ├── exceptions.py                # Error codes & custom exceptions
@@ -291,33 +424,73 @@ lattices-services/
 │   │   ├── entities/
 │   │   │   ├── todo.py                  # Todo dataclass entity
 │   │   │   ├── tag.py                   # Tag dataclass entity
+│   │   │   ├── workspace.py             # Workspace, WorkspaceMember, WorkspaceRole
+│   │   │   ├── group.py                 # Group, GroupMember, GroupRole
+│   │   │   ├── invitation.py            # Invitation, InvitationStatus
+│   │   │   ├── notification.py          # Notification, preferences, types
+│   │   │   ├── activity.py              # ActivityLog, action constants
 │   │   │   └── profile.py              # User profile entity
 │   │   ├── repositories/
+│   │   │   ├── unit_of_work.py          # IUnitOfWork protocol
 │   │   │   ├── todo_repository.py       # ITodoRepository protocol
 │   │   │   ├── tag_repository.py        # ITagRepository protocol
-│   │   │   └── unit_of_work.py          # IUnitOfWork protocol
+│   │   │   ├── workspace_repository.py  # IWorkspaceRepository protocol
+│   │   │   ├── group_repository.py      # IGroupRepository protocol
+│   │   │   ├── invitation_repository.py # IInvitationRepository protocol
+│   │   │   ├── notification_repository.py # INotificationRepository protocol
+│   │   │   └── activity_repository.py   # IActivityRepository protocol
 │   │   └── services/
 │   │       ├── todo_service.py          # Todo business logic
-│   │       └── tag_service.py           # Tag business logic
+│   │       ├── tag_service.py           # Tag business logic
+│   │       ├── workspace_service.py     # Workspace + member management
+│   │       ├── group_service.py         # Group management
+│   │       ├── invitation_service.py    # Invitation create/accept/revoke
+│   │       ├── notification_service.py  # Notification dispatch + preferences
+│   │       └── activity_service.py      # Activity logging + feed
 │   └── infrastructure/
 │       ├── auth/
 │       │   ├── provider.py              # IAuthProvider protocol + TokenUser
-│       │   └── jwt_provider.py          # JWT implementation
+│       │   └── jwt_provider.py          # JWT implementation (HS256 + ES256)
 │       └── database/
-│           ├── models.py                # SQLAlchemy ORM models
+│           ├── models.py                # SQLAlchemy ORM models (14 tables)
 │           ├── session.py               # Async engine & session factory
 │           ├── sqlalchemy_uow.py        # Unit of Work implementation
-│           └── repositories/
-│               ├── sqlalchemy_todo_repo.py  # Todo repository impl
-│               └── sqlalchemy_tag_repo.py   # Tag repository impl
+│           └── repositories/            # SQLAlchemy repository implementations
+│               ├── sqlalchemy_todo_repo.py
+│               ├── sqlalchemy_tag_repo.py
+│               ├── sqlalchemy_workspace_repo.py
+│               ├── sqlalchemy_group_repo.py
+│               ├── sqlalchemy_invitation_repo.py
+│               ├── sqlalchemy_notification_repo.py
+│               └── sqlalchemy_activity_repo.py
 ├── tests/
-│   ├── conftest.py                      # Fixtures (auth, DB, test client)
+│   ├── conftest.py                      # Shared fixtures (DB, auth, test user)
 │   ├── integration/api/
 │   │   ├── test_health.py               # Health endpoint tests
 │   │   ├── test_todos_api.py            # Todo API integration tests
-│   │   └── test_tags_api.py             # Tag API integration tests
-│   └── unit/services/
-│       └── test_todo_service.py         # Todo service unit tests
+│   │   ├── test_tags_api.py             # Tag API integration tests
+│   │   ├── test_workspaces_api.py       # Workspace API tests
+│   │   ├── test_groups_api.py           # Group API tests
+│   │   ├── test_invitations_api.py      # Invitation API tests
+│   │   ├── test_notifications_api.py    # Notification API tests
+│   │   └── test_activity_api.py         # Activity feed API tests
+│   └── unit/
+│       ├── conftest.py                  # Shared FakeUnitOfWork (7 repo mocks)
+│       ├── services/
+│       │   ├── test_todo_service.py     # Todo service unit tests
+│       │   ├── test_tag_service.py      # Tag service unit tests
+│       │   ├── test_workspace_service.py # Workspace service unit tests
+│       │   ├── test_group_service.py    # Group service unit tests
+│       │   ├── test_invitation_service.py # Invitation service unit tests
+│       │   ├── test_notification_service.py # Notification service unit tests
+│       │   └── test_activity_service.py # Activity service unit tests
+│       ├── auth/
+│       │   ├── test_auth_dependency.py  # Auth dependency tests
+│       │   └── test_jwt_provider.py     # JWT provider tests (HS256 + ES256)
+│       ├── api/
+│       │   └── test_exception_handlers.py # Exception handler tests
+│       └── middleware/
+│           └── test_middleware.py        # Security headers + request ID tests
 ├── migrations/                          # Alembic migration scripts
 ├── .env.example                         # Environment variable template
 ├── alembic.ini                          # Alembic configuration
@@ -330,7 +503,7 @@ lattices-services/
 
 ## Testing
 
-Tests use **pytest** with **pytest-asyncio** and an in-memory SQLite database.
+Tests use **pytest** with **pytest-asyncio** and an in-memory SQLite database (aiosqlite).
 
 ### Run the full test suite
 
@@ -352,16 +525,29 @@ pytest tests/integration/api/test_todos_api.py -v
 
 ### Test structure
 
-| Test Type | Count | Location |
-|---|---|---|
-| **Integration** (API) | 35 | `tests/integration/api/` |
-| **Unit** (Services) | 14 | `tests/unit/services/` |
-| **Total** | **49** | |
+| Test Type | Count | Location | Scope |
+|---|---|---|---|
+| **Unit** (Services) | 163 | `tests/unit/services/` | Business logic, permissions, side effects |
+| **Unit** (Auth) | 23 | `tests/unit/auth/` | JWT validation, auth dependencies |
+| **Unit** (API/Middleware) | 10 | `tests/unit/api/`, `tests/unit/middleware/` | Exception handlers, security headers |
+| **Integration** (API) | 107 | `tests/integration/api/` | Full request/response through all layers |
+| **Total** | **303** | | **86% line coverage** |
 
-The test infrastructure uses FastAPI dependency overrides to inject:
-- In-memory SQLite via aiosqlite
-- A fixed test user (bypasses JWT verification)
-- Test-scoped service instances with the test database
+### Coverage highlights
+
+| Module | Coverage |
+|---|---|
+| Domain services | 88--100% |
+| Auth (JWT provider) | 100% |
+| Exception handlers | 100% |
+| Middleware | 93--100% |
+| API routes | 64--90% |
+| Overall | **86%** |
+
+The test infrastructure uses:
+- **Unit tests:** `FakeUnitOfWork` with `AsyncMock` repos for isolated service testing
+- **Integration tests:** FastAPI dependency overrides with in-memory SQLite via aiosqlite
+- A fixed test user (bypasses JWT verification in integration tests)
 
 ---
 
