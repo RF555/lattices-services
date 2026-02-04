@@ -1,15 +1,12 @@
 """Integration tests for Notifications API."""
 
-from datetime import datetime
 from uuid import uuid4
 
 import pytest
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from infrastructure.database.models import (
-    Base,
     NotificationModel,
     NotificationRecipientModel,
     NotificationTypeModel,
@@ -20,9 +17,7 @@ from infrastructure.database.models import (
 
 
 @pytest.fixture
-async def notification_client(
-    session_factory, test_user, auth_provider
-) -> AsyncClient:
+async def notification_client(session_factory, test_user, auth_provider) -> AsyncClient:
     """
     Create authenticated test client with notification service wired up.
 
@@ -33,8 +28,7 @@ async def notification_client(
     - Seeded notification types
     - Notification service dependency override
     """
-    from main import create_app
-    from api.dependencies.auth import get_current_user, get_auth_provider
+    from api.dependencies.auth import get_auth_provider, get_current_user
     from api.v1.dependencies import (
         get_notification_service,
         get_tag_service,
@@ -46,6 +40,7 @@ async def notification_client(
     from domain.services.todo_service import TodoService
     from domain.services.workspace_service import WorkspaceService
     from infrastructure.database.sqlalchemy_uow import SQLAlchemyUnitOfWork
+    from main import create_app
 
     app = create_app()
 
@@ -65,9 +60,7 @@ async def notification_client(
 
     # Seed notification types
     async with session_factory() as session:
-        stmt = select(NotificationTypeModel).where(
-            NotificationTypeModel.name == "task.completed"
-        )
+        stmt = select(NotificationTypeModel).where(NotificationTypeModel.name == "task.completed")
         result = await session.execute(stmt)
         if not result.scalar_one_or_none():
             types = [
@@ -116,9 +109,7 @@ async def notification_client(
     # Create notification + recipient records for the test user
     async with session_factory() as session:
         # Get the task.completed type ID
-        stmt = select(NotificationTypeModel).where(
-            NotificationTypeModel.name == "task.completed"
-        )
+        stmt = select(NotificationTypeModel).where(NotificationTypeModel.name == "task.completed")
         result = await session.execute(stmt)
         task_completed_type = result.scalar_one()
 
@@ -215,9 +206,7 @@ class TestWorkspaceNotifications:
     async def test_list_workspace_notifications(self, notification_client: AsyncClient):
         """Test GET /workspaces/{wid}/notifications returns notification feed."""
         wid = notification_client.workspace_id  # type: ignore[attr-defined]
-        response = await notification_client.get(
-            f"/api/v1/workspaces/{wid}/notifications"
-        )
+        response = await notification_client.get(f"/api/v1/workspaces/{wid}/notifications")
 
         assert response.status_code == 200
         data = response.json()
@@ -227,9 +216,7 @@ class TestWorkspaceNotifications:
         assert "unread_count" in data["meta"]
 
     @pytest.mark.asyncio
-    async def test_list_workspace_notifications_with_filter(
-        self, notification_client: AsyncClient
-    ):
+    async def test_list_workspace_notifications_with_filter(self, notification_client: AsyncClient):
         """Test GET with is_read filter."""
         wid = notification_client.workspace_id  # type: ignore[attr-defined]
         response = await notification_client.get(
@@ -274,9 +261,7 @@ class TestWorkspaceNotifications:
         rid = notification_client.recipient1_id  # type: ignore[attr-defined]
 
         # First mark as read
-        await notification_client.patch(
-            f"/api/v1/workspaces/{wid}/notifications/{rid}/read"
-        )
+        await notification_client.patch(f"/api/v1/workspaces/{wid}/notifications/{rid}/read")
 
         # Then mark as unread
         response = await notification_client.patch(
@@ -304,9 +289,7 @@ class TestWorkspaceNotifications:
         wid = notification_client.workspace_id  # type: ignore[attr-defined]
         rid = notification_client.recipient2_id  # type: ignore[attr-defined]
 
-        response = await notification_client.delete(
-            f"/api/v1/workspaces/{wid}/notifications/{rid}"
-        )
+        response = await notification_client.delete(f"/api/v1/workspaces/{wid}/notifications/{rid}")
 
         assert response.status_code == 204
 
@@ -340,9 +323,7 @@ class TestUserNotifications:
     @pytest.mark.asyncio
     async def test_get_user_unread_count(self, notification_client: AsyncClient):
         """Test GET /users/me/notifications/unread-count."""
-        response = await notification_client.get(
-            "/api/v1/users/me/notifications/unread-count"
-        )
+        response = await notification_client.get("/api/v1/users/me/notifications/unread-count")
 
         assert response.status_code == 200
         data = response.json()
@@ -350,13 +331,9 @@ class TestUserNotifications:
         assert data["count"] >= 2
 
     @pytest.mark.asyncio
-    async def test_mark_all_user_notifications_read(
-        self, notification_client: AsyncClient
-    ):
+    async def test_mark_all_user_notifications_read(self, notification_client: AsyncClient):
         """Test POST /users/me/notifications/mark-all-read."""
-        response = await notification_client.post(
-            "/api/v1/users/me/notifications/mark-all-read"
-        )
+        response = await notification_client.post("/api/v1/users/me/notifications/mark-all-read")
 
         assert response.status_code == 200
         data = response.json()
@@ -369,9 +346,7 @@ class TestNotificationPreferences:
     @pytest.mark.asyncio
     async def test_get_preferences_empty(self, notification_client: AsyncClient):
         """Test GET /users/me/notification-preferences returns empty list initially."""
-        response = await notification_client.get(
-            "/api/v1/users/me/notification-preferences"
-        )
+        response = await notification_client.get("/api/v1/users/me/notification-preferences")
 
         assert response.status_code == 200
         data = response.json()
@@ -415,9 +390,7 @@ class TestNotificationPreferences:
         assert response.json()["enabled"] is True
 
     @pytest.mark.asyncio
-    async def test_upsert_preference_invalid_channel(
-        self, notification_client: AsyncClient
-    ):
+    async def test_upsert_preference_invalid_channel(self, notification_client: AsyncClient):
         """Test validation error for invalid channel."""
         response = await notification_client.put(
             "/api/v1/users/me/notification-preferences",
@@ -433,9 +406,7 @@ class TestNotificationTypes:
     @pytest.mark.asyncio
     async def test_list_notification_types(self, notification_client: AsyncClient):
         """Test GET /users/me/notification-types returns seeded types."""
-        response = await notification_client.get(
-            "/api/v1/users/me/notification-types"
-        )
+        response = await notification_client.get("/api/v1/users/me/notification-types")
 
         assert response.status_code == 200
         data = response.json()

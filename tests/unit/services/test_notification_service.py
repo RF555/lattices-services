@@ -14,11 +14,9 @@ from domain.entities.notification import (
     NotificationType,
 )
 from domain.services.notification_service import (
-    DEDUP_WINDOW_SECONDS,
     NOTIFICATION_EXPIRY_DAYS,
     NotificationService,
 )
-
 
 # --- Fake UoW ---
 
@@ -548,9 +546,7 @@ class TestGetNotifications:
         uow.notifications.get_all_types.return_value = []
         uow.notifications.get_unread_count.return_value = 0
 
-        await service.get_notifications(
-            user_id=user_id, limit=10, cursor=cursor
-        )
+        await service.get_notifications(user_id=user_id, limit=10, cursor=cursor)
 
         uow.notifications.get_user_notifications.assert_called_once_with(
             user_id=user_id,

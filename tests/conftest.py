@@ -3,8 +3,8 @@
 import asyncio
 import os
 import sys
+from collections.abc import AsyncGenerator
 from pathlib import Path
-from typing import AsyncGenerator
 from uuid import uuid4
 
 # Disable rate limiting in tests
@@ -12,16 +12,16 @@ os.environ["RATE_LIMIT_ENABLED"] = "false"
 
 import pytest
 from httpx import ASGITransport, AsyncClient
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.ext.compiler import compiles
-from sqlalchemy.dialects.postgresql import JSONB
 
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-from infrastructure.database.models import Base, ProfileModel  # noqa: E402
-from infrastructure.auth.provider import TokenUser  # noqa: E402
 from infrastructure.auth.jwt_provider import JWTAuthProvider  # noqa: E402
+from infrastructure.auth.provider import TokenUser  # noqa: E402
+from infrastructure.database.models import Base, ProfileModel  # noqa: E402
 
 
 # Compile JSONB as JSON for SQLite (used in tests)
@@ -141,12 +141,12 @@ async def authenticated_client(
     - Overrides auth dependency to return the test user
     - Overrides UoW factory to use test session
     """
-    from main import create_app
-    from api.dependencies.auth import get_current_user, get_auth_provider
+    from api.dependencies.auth import get_auth_provider, get_current_user
     from api.v1.dependencies import get_tag_service, get_todo_service
     from domain.services.tag_service import TagService
     from domain.services.todo_service import TodoService
     from infrastructure.database.sqlalchemy_uow import SQLAlchemyUnitOfWork
+    from main import create_app
 
     app = create_app()
 
