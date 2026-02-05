@@ -2,11 +2,11 @@
 
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
-from enum import Enum
+from enum import StrEnum
 from uuid import UUID, uuid4
 
 
-class InvitationStatus(str, Enum):
+class InvitationStatus(StrEnum):
     """Status of a workspace invitation."""
 
     PENDING = "pending"

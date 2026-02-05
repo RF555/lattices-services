@@ -1,10 +1,10 @@
 """Custom exceptions and error codes."""
 
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 
 
-class ErrorCode(str, Enum):
+class ErrorCode(StrEnum):
     """Standardized error codes for the API."""
 
     # Authentication errors (401)

@@ -2,11 +2,11 @@
 
 from dataclasses import dataclass, field
 from datetime import datetime
-from enum import Enum
+from enum import StrEnum
 from uuid import UUID, uuid4
 
 
-class GroupRole(str, Enum):
+class GroupRole(StrEnum):
     """Role within a group."""
 
     ADMIN = "admin"
