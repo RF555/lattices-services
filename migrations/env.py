@@ -13,8 +13,8 @@ from sqlalchemy.ext.asyncio import async_engine_from_config
 # Add src to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-from core.config import settings  # noqa: E402
-from infrastructure.database.models import Base  # noqa: E402
+from core.config import settings
+from infrastructure.database.models import Base
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

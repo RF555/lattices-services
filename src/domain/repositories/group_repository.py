@@ -29,9 +29,7 @@ class IGroupRepository(Protocol):
         """Delete a group."""
         ...
 
-    async def get_member(
-        self, group_id: UUID, user_id: UUID
-    ) -> GroupMember | None:
+    async def get_member(self, group_id: UUID, user_id: UUID) -> GroupMember | None:
         """Get a specific group member."""
         ...
 

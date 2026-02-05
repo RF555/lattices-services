@@ -151,9 +151,7 @@ class WorkspaceService:
             await uow.commit()
             return deleted  # type: ignore[no-any-return]
 
-    async def get_members(
-        self, workspace_id: UUID, user_id: UUID
-    ) -> list[WorkspaceMember]:
+    async def get_members(self, workspace_id: UUID, user_id: UUID) -> list[WorkspaceMember]:
         """Get all members of a workspace. Requires membership."""
         async with self._uow_factory() as uow:
             workspace = await uow.workspaces.get(workspace_id)
@@ -263,9 +261,7 @@ class WorkspaceService:
                 raise InsufficientPermissionsError("owner (use transfer_ownership)")
 
             old_role = target_member.role.name.lower()
-            updated = await uow.workspaces.update_member_role(
-                workspace_id, target_user_id, role
-            )
+            updated = await uow.workspaces.update_member_role(workspace_id, target_user_id, role)
 
             if self._activity:
                 await self._activity.log(
@@ -336,9 +332,11 @@ class WorkspaceService:
                 if not has_permission(actor_member.role, WorkspaceRole.ADMIN):
                     raise InsufficientPermissionsError("admin")
                 # Admins cannot remove other Admins or Owners
-                if has_permission(target_member.role, actor_member.role):
-                    if actor_member.role != WorkspaceRole.OWNER:
-                        raise InsufficientPermissionsError("owner")
+                if (
+                    has_permission(target_member.role, actor_member.role)
+                    and actor_member.role != WorkspaceRole.OWNER
+                ):
+                    raise InsufficientPermissionsError("owner")
 
             removed = await uow.workspaces.remove_member(workspace_id, target_user_id)
 
@@ -384,9 +382,7 @@ class WorkspaceService:
 
             await self._require_role(uow, workspace_id, current_owner_id, WorkspaceRole.OWNER)
 
-            new_owner_member = await uow.workspaces.get_member(
-                workspace_id, new_owner_id
-            )
+            new_owner_member = await uow.workspaces.get_member(workspace_id, new_owner_id)
             if not new_owner_member:
                 raise NotAMemberError(str(workspace_id))
 
@@ -394,9 +390,7 @@ class WorkspaceService:
             await uow.workspaces.update_member_role(
                 workspace_id, current_owner_id, WorkspaceRole.ADMIN
             )
-            await uow.workspaces.update_member_role(
-                workspace_id, new_owner_id, WorkspaceRole.OWNER
-            )
+            await uow.workspaces.update_member_role(workspace_id, new_owner_id, WorkspaceRole.OWNER)
 
             if self._activity:
                 await self._activity.log(
@@ -428,9 +422,7 @@ class WorkspaceService:
                 return False
             return has_permission(member.role, required_role)  # type: ignore[no-any-return]
 
-    async def get_user_role(
-        self, workspace_id: UUID, user_id: UUID
-    ) -> WorkspaceRole | None:
+    async def get_user_role(self, workspace_id: UUID, user_id: UUID) -> WorkspaceRole | None:
         """Get a user's role in a workspace, or None if not a member."""
         async with self._uow_factory() as uow:
             member = await uow.workspaces.get_member(workspace_id, user_id)

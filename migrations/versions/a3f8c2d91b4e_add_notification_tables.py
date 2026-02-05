@@ -5,131 +5,121 @@ Revises: e1eb0d70d0ac
 Create Date: 2026-02-03 12:00:00.000000
 
 """
-from typing import Sequence, Union
 
-from alembic import op
+from collections.abc import Sequence
+
 import sqlalchemy as sa
-
+from alembic import op
 
 # revision identifiers, used by Alembic.
-revision: str = 'a3f8c2d91b4e'
-down_revision: Union[str, Sequence[str], None] = 'e1eb0d70d0ac'
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+revision: str = "a3f8c2d91b4e"
+down_revision: str | Sequence[str] | None = "e1eb0d70d0ac"
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
     """Create notification tables, indexes, RLS policies, and seed data."""
 
     # --- notification_types (lookup/seed table) ---
-    op.create_table('notification_types',
-        sa.Column('id', sa.UUID(), nullable=False),
-        sa.Column('name', sa.String(length=50), nullable=False),
-        sa.Column('description', sa.Text(), nullable=True),
-        sa.Column('template', sa.Text(), nullable=False),
-        sa.Column('default_channels', sa.JSON(), nullable=True,
-                  server_default='["in_app"]'),
-        sa.Column('is_mandatory', sa.Boolean(), nullable=False,
-                  server_default='false'),
-        sa.Column('created_at', sa.DateTime(), nullable=False,
-                  server_default=sa.text('NOW()')),
-        sa.PrimaryKeyConstraint('id'),
-        sa.UniqueConstraint('name'),
+    op.create_table(
+        "notification_types",
+        sa.Column("id", sa.UUID(), nullable=False),
+        sa.Column("name", sa.String(length=50), nullable=False),
+        sa.Column("description", sa.Text(), nullable=True),
+        sa.Column("template", sa.Text(), nullable=False),
+        sa.Column("default_channels", sa.JSON(), nullable=True, server_default='["in_app"]'),
+        sa.Column("is_mandatory", sa.Boolean(), nullable=False, server_default="false"),
+        sa.Column("created_at", sa.DateTime(), nullable=False, server_default=sa.text("NOW()")),
+        sa.PrimaryKeyConstraint("id"),
+        sa.UniqueConstraint("name"),
     )
 
     # --- notifications (core event table) ---
-    op.create_table('notifications',
-        sa.Column('id', sa.UUID(), nullable=False),
-        sa.Column('type_id', sa.UUID(), nullable=False),
-        sa.Column('workspace_id', sa.UUID(), nullable=False),
-        sa.Column('actor_id', sa.UUID(), nullable=False),
-        sa.Column('entity_type', sa.String(length=50), nullable=False),
-        sa.Column('entity_id', sa.UUID(), nullable=False),
-        sa.Column('metadata', sa.JSON(), nullable=True, server_default='{}'),
-        sa.Column('created_at', sa.DateTime(), nullable=False,
-                  server_default=sa.text('NOW()')),
-        sa.Column('expires_at', sa.DateTime(), nullable=True),
-        sa.ForeignKeyConstraint(['type_id'], ['notification_types.id']),
-        sa.ForeignKeyConstraint(['workspace_id'], ['workspaces.id'],
-                                ondelete='CASCADE'),
-        sa.ForeignKeyConstraint(['actor_id'], ['profiles.id'],
-                                ondelete='CASCADE'),
-        sa.PrimaryKeyConstraint('id'),
+    op.create_table(
+        "notifications",
+        sa.Column("id", sa.UUID(), nullable=False),
+        sa.Column("type_id", sa.UUID(), nullable=False),
+        sa.Column("workspace_id", sa.UUID(), nullable=False),
+        sa.Column("actor_id", sa.UUID(), nullable=False),
+        sa.Column("entity_type", sa.String(length=50), nullable=False),
+        sa.Column("entity_id", sa.UUID(), nullable=False),
+        sa.Column("metadata", sa.JSON(), nullable=True, server_default="{}"),
+        sa.Column("created_at", sa.DateTime(), nullable=False, server_default=sa.text("NOW()")),
+        sa.Column("expires_at", sa.DateTime(), nullable=True),
+        sa.ForeignKeyConstraint(["type_id"], ["notification_types.id"]),
+        sa.ForeignKeyConstraint(["workspace_id"], ["workspaces.id"], ondelete="CASCADE"),
+        sa.ForeignKeyConstraint(["actor_id"], ["profiles.id"], ondelete="CASCADE"),
+        sa.PrimaryKeyConstraint("id"),
     )
-    op.create_index('idx_notifications_workspace_created',
-                    'notifications', ['workspace_id', sa.text('created_at DESC')])
-    op.create_index('idx_notifications_entity',
-                    'notifications', ['entity_type', 'entity_id'])
-    op.create_index('idx_notifications_expires',
-                    'notifications', ['expires_at'],
-                    postgresql_where=sa.text('expires_at IS NOT NULL'))
-    op.create_index('idx_notifications_dedup',
-                    'notifications',
-                    ['entity_type', 'entity_id', 'actor_id',
-                     sa.text('created_at DESC')])
+    op.create_index(
+        "idx_notifications_workspace_created",
+        "notifications",
+        ["workspace_id", sa.text("created_at DESC")],
+    )
+    op.create_index("idx_notifications_entity", "notifications", ["entity_type", "entity_id"])
+    op.create_index(
+        "idx_notifications_expires",
+        "notifications",
+        ["expires_at"],
+        postgresql_where=sa.text("expires_at IS NOT NULL"),
+    )
+    op.create_index(
+        "idx_notifications_dedup",
+        "notifications",
+        ["entity_type", "entity_id", "actor_id", sa.text("created_at DESC")],
+    )
 
     # --- notification_recipients (per-user delivery) ---
-    op.create_table('notification_recipients',
-        sa.Column('id', sa.UUID(), nullable=False),
-        sa.Column('notification_id', sa.UUID(), nullable=False),
-        sa.Column('recipient_id', sa.UUID(), nullable=False),
-        sa.Column('is_read', sa.Boolean(), nullable=False,
-                  server_default='false'),
-        sa.Column('read_at', sa.DateTime(), nullable=True),
-        sa.Column('is_deleted', sa.Boolean(), nullable=False,
-                  server_default='false'),
-        sa.Column('deleted_at', sa.DateTime(), nullable=True),
-        sa.ForeignKeyConstraint(['notification_id'], ['notifications.id'],
-                                ondelete='CASCADE'),
-        sa.ForeignKeyConstraint(['recipient_id'], ['profiles.id'],
-                                ondelete='CASCADE'),
-        sa.PrimaryKeyConstraint('id'),
-        sa.UniqueConstraint('notification_id', 'recipient_id'),
+    op.create_table(
+        "notification_recipients",
+        sa.Column("id", sa.UUID(), nullable=False),
+        sa.Column("notification_id", sa.UUID(), nullable=False),
+        sa.Column("recipient_id", sa.UUID(), nullable=False),
+        sa.Column("is_read", sa.Boolean(), nullable=False, server_default="false"),
+        sa.Column("read_at", sa.DateTime(), nullable=True),
+        sa.Column("is_deleted", sa.Boolean(), nullable=False, server_default="false"),
+        sa.Column("deleted_at", sa.DateTime(), nullable=True),
+        sa.ForeignKeyConstraint(["notification_id"], ["notifications.id"], ondelete="CASCADE"),
+        sa.ForeignKeyConstraint(["recipient_id"], ["profiles.id"], ondelete="CASCADE"),
+        sa.PrimaryKeyConstraint("id"),
+        sa.UniqueConstraint("notification_id", "recipient_id"),
     )
     # Partial indexes for performance
-    op.create_index('idx_recipients_user_unread',
-                    'notification_recipients',
-                    ['recipient_id', sa.text('notification_id DESC')],
-                    postgresql_where=sa.text(
-                        'is_read = FALSE AND is_deleted = FALSE'))
-    op.create_index('idx_recipients_user_feed',
-                    'notification_recipients',
-                    ['recipient_id', sa.text('notification_id DESC')],
-                    postgresql_where=sa.text('is_deleted = FALSE'))
+    op.create_index(
+        "idx_recipients_user_unread",
+        "notification_recipients",
+        ["recipient_id", sa.text("notification_id DESC")],
+        postgresql_where=sa.text("is_read = FALSE AND is_deleted = FALSE"),
+    )
+    op.create_index(
+        "idx_recipients_user_feed",
+        "notification_recipients",
+        ["recipient_id", sa.text("notification_id DESC")],
+        postgresql_where=sa.text("is_deleted = FALSE"),
+    )
 
     # --- notification_preferences (user settings) ---
-    op.create_table('notification_preferences',
-        sa.Column('id', sa.UUID(), nullable=False),
-        sa.Column('user_id', sa.UUID(), nullable=False),
-        sa.Column('workspace_id', sa.UUID(), nullable=True),
-        sa.Column('notification_type', sa.String(length=50), nullable=True),
-        sa.Column('channel', sa.String(length=20), nullable=False,
-                  server_default='in_app'),
-        sa.Column('enabled', sa.Boolean(), nullable=False,
-                  server_default='true'),
-        sa.ForeignKeyConstraint(['user_id'], ['profiles.id'],
-                                ondelete='CASCADE'),
-        sa.ForeignKeyConstraint(['workspace_id'], ['workspaces.id'],
-                                ondelete='CASCADE'),
-        sa.PrimaryKeyConstraint('id'),
-        sa.UniqueConstraint('user_id', 'workspace_id', 'notification_type',
-                            'channel'),
+    op.create_table(
+        "notification_preferences",
+        sa.Column("id", sa.UUID(), nullable=False),
+        sa.Column("user_id", sa.UUID(), nullable=False),
+        sa.Column("workspace_id", sa.UUID(), nullable=True),
+        sa.Column("notification_type", sa.String(length=50), nullable=True),
+        sa.Column("channel", sa.String(length=20), nullable=False, server_default="in_app"),
+        sa.Column("enabled", sa.Boolean(), nullable=False, server_default="true"),
+        sa.ForeignKeyConstraint(["user_id"], ["profiles.id"], ondelete="CASCADE"),
+        sa.ForeignKeyConstraint(["workspace_id"], ["workspaces.id"], ondelete="CASCADE"),
+        sa.PrimaryKeyConstraint("id"),
+        sa.UniqueConstraint("user_id", "workspace_id", "notification_type", "channel"),
     )
-    op.create_index('idx_prefs_user', 'notification_preferences', ['user_id'])
+    op.create_index("idx_prefs_user", "notification_preferences", ["user_id"])
 
     # --- Enable RLS on all notification tables ---
-    op.execute(
-        "ALTER TABLE notification_types ENABLE ROW LEVEL SECURITY;"
-    )
-    op.execute(
-        "ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;"
-    )
-    op.execute(
-        "ALTER TABLE notification_recipients ENABLE ROW LEVEL SECURITY;"
-    )
-    op.execute(
-        "ALTER TABLE notification_preferences ENABLE ROW LEVEL SECURITY;"
-    )
+    op.execute("ALTER TABLE notification_types ENABLE ROW LEVEL SECURITY;")
+    op.execute("ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;")
+    op.execute("ALTER TABLE notification_recipients ENABLE ROW LEVEL SECURITY;")
+    op.execute("ALTER TABLE notification_preferences ENABLE ROW LEVEL SECURITY;")
 
     # --- RLS Policies ---
 
@@ -223,37 +213,24 @@ def downgrade() -> None:
     """Drop notification tables and RLS policies."""
     # Drop RLS policies
     op.execute("DROP POLICY IF EXISTS prefs_all ON notification_preferences;")
-    op.execute(
-        "DROP POLICY IF EXISTS recipients_update ON notification_recipients;"
-    )
-    op.execute(
-        "DROP POLICY IF EXISTS recipients_select ON notification_recipients;"
-    )
-    op.execute(
-        "DROP POLICY IF EXISTS notifications_insert ON notifications;"
-    )
-    op.execute(
-        "DROP POLICY IF EXISTS notifications_select ON notifications;"
-    )
-    op.execute(
-        "DROP POLICY IF EXISTS types_select ON notification_types;"
-    )
+    op.execute("DROP POLICY IF EXISTS recipients_update ON notification_recipients;")
+    op.execute("DROP POLICY IF EXISTS recipients_select ON notification_recipients;")
+    op.execute("DROP POLICY IF EXISTS notifications_insert ON notifications;")
+    op.execute("DROP POLICY IF EXISTS notifications_select ON notifications;")
+    op.execute("DROP POLICY IF EXISTS types_select ON notification_types;")
 
     # Drop indexes and tables (in dependency order)
-    op.drop_index('idx_prefs_user', table_name='notification_preferences')
-    op.drop_table('notification_preferences')
+    op.drop_index("idx_prefs_user", table_name="notification_preferences")
+    op.drop_table("notification_preferences")
 
-    op.drop_index('idx_recipients_user_feed',
-                  table_name='notification_recipients')
-    op.drop_index('idx_recipients_user_unread',
-                  table_name='notification_recipients')
-    op.drop_table('notification_recipients')
+    op.drop_index("idx_recipients_user_feed", table_name="notification_recipients")
+    op.drop_index("idx_recipients_user_unread", table_name="notification_recipients")
+    op.drop_table("notification_recipients")
 
-    op.drop_index('idx_notifications_dedup', table_name='notifications')
-    op.drop_index('idx_notifications_expires', table_name='notifications')
-    op.drop_index('idx_notifications_entity', table_name='notifications')
-    op.drop_index('idx_notifications_workspace_created',
-                  table_name='notifications')
-    op.drop_table('notifications')
+    op.drop_index("idx_notifications_dedup", table_name="notifications")
+    op.drop_index("idx_notifications_expires", table_name="notifications")
+    op.drop_index("idx_notifications_entity", table_name="notifications")
+    op.drop_index("idx_notifications_workspace_created", table_name="notifications")
+    op.drop_table("notifications")
 
-    op.drop_table('notification_types')
+    op.drop_table("notification_types")

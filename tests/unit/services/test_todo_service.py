@@ -640,7 +640,7 @@ class TestTodoServiceWorkspaceScoped:
         activity_service: ActivityService,
         notification_service: NotificationService,
     ):
-        """Completing a workspace todo logs TODO_COMPLETED action and TASK_COMPLETED notification."""
+        """Completing a workspace todo logs activity and notification."""
         uow.todos.get.return_value = ws_todo
         uow.workspaces.get_member.return_value = member
         # After update, the todo will be completed

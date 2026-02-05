@@ -8,6 +8,7 @@ from uuid import UUID, uuid4
 # --- Activity Action Constants ---
 # Format: {entity_type}.{action}
 
+
 class Actions:
     """Activity action constants using dot-notation."""
 

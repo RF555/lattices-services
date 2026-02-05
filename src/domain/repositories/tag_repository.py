@@ -21,9 +21,7 @@ class ITagRepository(Protocol):
         """Get all tags for a workspace."""
         ...
 
-    async def get_by_name_in_workspace(
-        self, workspace_id: UUID, name: str
-    ) -> Tag | None:
+    async def get_by_name_in_workspace(self, workspace_id: UUID, name: str) -> Tag | None:
         """Get a tag by name within a workspace."""
         ...
 

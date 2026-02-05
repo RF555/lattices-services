@@ -11,7 +11,10 @@ from core.config import settings
 # asyncpg's prepared statement cache is incompatible with transaction-mode
 # pooling, so we disable it when connecting through the pooler.
 _connect_args: dict[str, Any] = {}
-if "supabase.com" in settings.async_database_url or "pooler.supabase.com" in settings.async_database_url:
+if (
+    "supabase.com" in settings.async_database_url
+    or "pooler.supabase.com" in settings.async_database_url
+):
     _connect_args["statement_cache_size"] = 0
 
 # Create async engine

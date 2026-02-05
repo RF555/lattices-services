@@ -135,9 +135,7 @@ class JWTAuthProvider:
         except JWTError:
             return None
 
-    async def _validate_es256(
-        self, token: str, header: dict[str, Any]
-    ) -> dict[str, Any] | None:
+    async def _validate_es256(self, token: str, header: dict[str, Any]) -> dict[str, Any] | None:
         """Validate an ES256-signed JWT using JWKS public keys."""
         kid = header.get("kid")
         if not kid:

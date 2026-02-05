@@ -34,9 +34,7 @@ class TodoService:
         self._activity = activity_service
         self._notification = notification_service
 
-    async def get_child_counts_batch(
-        self, todo_ids: list[UUID]
-    ) -> dict[UUID, tuple[int, int]]:
+    async def get_child_counts_batch(self, todo_ids: list[UUID]) -> dict[UUID, tuple[int, int]]:
         """Get child counts for multiple todos.
 
         Returns a mapping of parent_id -> (child_count, completed_child_count).
@@ -46,9 +44,7 @@ class TodoService:
         async with self._uow_factory() as uow:
             return await uow.todos.get_child_counts_batch(todo_ids)  # type: ignore[no-any-return]
 
-    async def get_all_for_user(
-        self, user_id: UUID, workspace_id: UUID | None = None
-    ) -> list[Todo]:
+    async def get_all_for_user(self, user_id: UUID, workspace_id: UUID | None = None) -> list[Todo]:
         """Get all todos for a user, optionally scoped to a workspace.
 
         If workspace_id is provided, verifies membership and returns workspace todos.
@@ -56,9 +52,7 @@ class TodoService:
         """
         async with self._uow_factory() as uow:
             if workspace_id:
-                await self._require_workspace_role(
-                    uow, workspace_id, user_id, WorkspaceRole.VIEWER
-                )
+                await self._require_workspace_role(uow, workspace_id, user_id, WorkspaceRole.VIEWER)
                 return await uow.todos.get_all_for_workspace(workspace_id)  # type: ignore[no-any-return]
             return await uow.todos.get_all_for_user(user_id)  # type: ignore[no-any-return]
 
@@ -73,9 +67,7 @@ class TodoService:
 
             # If workspace_id is given, verify membership
             if workspace_id:
-                await self._require_workspace_role(
-                    uow, workspace_id, user_id, WorkspaceRole.VIEWER
-                )
+                await self._require_workspace_role(uow, workspace_id, user_id, WorkspaceRole.VIEWER)
                 if todo.workspace_id != workspace_id:
                     raise TodoNotFoundError(str(todo_id))
             elif todo.workspace_id:
@@ -100,9 +92,7 @@ class TodoService:
         """Create a new todo. Requires Member+ role if workspace_id is provided."""
         async with self._uow_factory() as uow:
             if workspace_id:
-                await self._require_workspace_role(
-                    uow, workspace_id, user_id, WorkspaceRole.MEMBER
-                )
+                await self._require_workspace_role(uow, workspace_id, user_id, WorkspaceRole.MEMBER)
 
             # Validate parent exists and user has access
             if parent_id:
@@ -110,9 +100,10 @@ class TodoService:
                 if not parent:
                     raise TodoNotFoundError(str(parent_id))
                 # If workspace-scoped, parent must be in same workspace
-                if workspace_id and parent.workspace_id != workspace_id:
-                    raise TodoNotFoundError(str(parent_id))
-                elif not workspace_id and parent.user_id != user_id:
+                parent_mismatch = (workspace_id and parent.workspace_id != workspace_id) or (
+                    not workspace_id and parent.user_id != user_id
+                )
+                if parent_mismatch:
                     raise TodoNotFoundError(str(parent_id))
 
             # Get position for new todo (last in list)
@@ -211,9 +202,10 @@ class TodoService:
                         raise TodoNotFoundError(str(parent_id))
 
                     # If workspace-scoped, parent must be in same workspace
-                    if todo.workspace_id and parent.workspace_id != todo.workspace_id:
-                        raise TodoNotFoundError(str(parent_id))
-                    elif not todo.workspace_id and parent.user_id != user_id:
+                    parent_mismatch = (
+                        todo.workspace_id and parent.workspace_id != todo.workspace_id
+                    ) or (not todo.workspace_id and parent.user_id != user_id)
+                    if parent_mismatch:
                         raise TodoNotFoundError(str(parent_id))
 
                     # Prevent circular reference
@@ -307,9 +299,7 @@ class TodoService:
 
             return updated
 
-    async def delete(
-        self, todo_id: UUID, user_id: UUID, actor_name: str | None = None
-    ) -> bool:
+    async def delete(self, todo_id: UUID, user_id: UUID, actor_name: str | None = None) -> bool:
         """Delete a todo and all its descendants (cascade).
 
         Requires Admin+ role in workspace context, or user ownership.

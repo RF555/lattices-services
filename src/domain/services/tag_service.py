@@ -28,19 +28,14 @@ class TagService:
         """Get all tags for user with usage counts, optionally scoped to workspace."""
         async with self._uow_factory() as uow:
             if workspace_id:
-                await self._require_workspace_role(
-                    uow, workspace_id, user_id, WorkspaceRole.VIEWER
-                )
+                await self._require_workspace_role(uow, workspace_id, user_id, WorkspaceRole.VIEWER)
                 tags = await uow.tags.get_all_for_workspace(workspace_id)
             else:
                 tags = await uow.tags.get_all_for_user(user_id)
 
             tag_ids = [tag.id for tag in tags]
             usage_counts = await uow.tags.get_usage_counts_batch(tag_ids)
-            return [
-                TagWithCount(tag=tag, usage_count=usage_counts.get(tag.id, 0))
-                for tag in tags
-            ]
+            return [TagWithCount(tag=tag, usage_count=usage_counts.get(tag.id, 0)) for tag in tags]
 
     async def get_by_id(self, tag_id: UUID, user_id: UUID) -> Tag:
         """Get a specific tag, verifying workspace membership or user ownership."""
@@ -69,9 +64,7 @@ class TagService:
         """Create a new tag. Requires Member+ role if workspace_id is provided."""
         async with self._uow_factory() as uow:
             if workspace_id:
-                await self._require_workspace_role(
-                    uow, workspace_id, user_id, WorkspaceRole.MEMBER
-                )
+                await self._require_workspace_role(uow, workspace_id, user_id, WorkspaceRole.MEMBER)
                 # Check for duplicate name within workspace
                 existing = await uow.tags.get_by_name_in_workspace(workspace_id, name)
             else:
@@ -121,9 +114,7 @@ class TagService:
             if name and name != tag.name:
                 # Check for duplicate name
                 if tag.workspace_id:
-                    existing = await uow.tags.get_by_name_in_workspace(
-                        tag.workspace_id, name
-                    )
+                    existing = await uow.tags.get_by_name_in_workspace(tag.workspace_id, name)
                 else:
                     existing = await uow.tags.get_by_name(user_id, name)
                 if existing:
@@ -240,9 +231,7 @@ class TagService:
 
             return await uow.tags.get_for_todo(todo_id)  # type: ignore[no-any-return]
 
-    async def get_tags_for_todos_batch(
-        self, todo_ids: list[UUID]
-    ) -> dict[UUID, list[Tag]]:
+    async def get_tags_for_todos_batch(self, todo_ids: list[UUID]) -> dict[UUID, list[Tag]]:
         """Get tags for multiple todos in a single query (batch fetch)."""
         if not todo_ids:
             return {}

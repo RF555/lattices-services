@@ -81,9 +81,7 @@ class SQLAlchemyInvitationRepository:
         model = result.scalar_one_or_none()
         return self._to_entity(model) if model else None
 
-    async def update_status(
-        self, id: UUID, status: InvitationStatus
-    ) -> Invitation:
+    async def update_status(self, id: UUID, status: InvitationStatus) -> Invitation:
         """Update the status of an invitation."""
         stmt = select(InvitationModel).where(InvitationModel.id == id)
         result = await self._session.execute(stmt)

@@ -75,9 +75,7 @@ class InvitationService:
             await self._require_role(uow, workspace_id, user_id, WorkspaceRole.ADMIN)
 
             # Check for existing pending invitation
-            existing = await uow.invitations.get_pending_for_workspace_email(
-                workspace_id, email
-            )
+            existing = await uow.invitations.get_pending_for_workspace_email(workspace_id, email)
             if existing:
                 raise DuplicateInvitationError(email)
 
@@ -138,9 +136,7 @@ class InvitationService:
 
             # Check expiry
             if invitation.is_expired:
-                await uow.invitations.update_status(
-                    invitation.id, InvitationStatus.EXPIRED
-                )
+                await uow.invitations.update_status(invitation.id, InvitationStatus.EXPIRED)
                 await uow.commit()
                 raise InvitationExpiredError()
 
@@ -149,14 +145,10 @@ class InvitationService:
                 raise InvitationEmailMismatchError()
 
             # Check if user is already a member
-            existing_member = await uow.workspaces.get_member(
-                invitation.workspace_id, user_id
-            )
+            existing_member = await uow.workspaces.get_member(invitation.workspace_id, user_id)
             if existing_member:
                 # Mark invitation as accepted anyway to prevent reuse
-                await uow.invitations.update_status(
-                    invitation.id, InvitationStatus.ACCEPTED
-                )
+                await uow.invitations.update_status(invitation.id, InvitationStatus.ACCEPTED)
                 await uow.commit()
                 raise AlreadyAMemberError(str(user_id))
 
@@ -178,9 +170,7 @@ class InvitationService:
             added = await uow.workspaces.add_member(member)
 
             # Mark invitation as accepted
-            await uow.invitations.update_status(
-                invitation.id, InvitationStatus.ACCEPTED
-            )
+            await uow.invitations.update_status(invitation.id, InvitationStatus.ACCEPTED)
 
             # Notify the inviter that the invitation was accepted
             if self._notification:
@@ -233,9 +223,7 @@ class InvitationService:
 
             # Get all workspace invitations and find the matching one
             invitations = await uow.invitations.get_for_workspace(workspace_id)
-            invitation = next(
-                (inv for inv in invitations if inv.id == invitation_id), None
-            )
+            invitation = next((inv for inv in invitations if inv.id == invitation_id), None)
 
             if not invitation:
                 raise InvitationNotFoundError(str(invitation_id))
@@ -243,9 +231,7 @@ class InvitationService:
             if invitation.status != InvitationStatus.PENDING:
                 raise InvitationNotFoundError(str(invitation_id))
 
-            await uow.invitations.update_status(
-                invitation_id, InvitationStatus.REVOKED
-            )
+            await uow.invitations.update_status(invitation_id, InvitationStatus.REVOKED)
             await uow.commit()
             return True
 

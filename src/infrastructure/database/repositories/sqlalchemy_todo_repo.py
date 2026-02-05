@@ -55,9 +55,7 @@ class SQLAlchemyTodoRepository:
     async def get_children(self, parent_id: UUID) -> list[Todo]:
         """Get all direct children of a todo."""
         stmt = (
-            select(TodoModel)
-            .where(TodoModel.parent_id == parent_id)
-            .order_by(TodoModel.position)
+            select(TodoModel).where(TodoModel.parent_id == parent_id).order_by(TodoModel.position)
         )
         result = await self._session.execute(stmt)
         return [self._to_entity(model) for model in result.scalars()]
@@ -104,9 +102,7 @@ class SQLAlchemyTodoRepository:
         await self._session.flush()
         return True
 
-    async def get_child_counts_batch(
-        self, todo_ids: list[UUID]
-    ) -> dict[UUID, tuple[int, int]]:
+    async def get_child_counts_batch(self, todo_ids: list[UUID]) -> dict[UUID, tuple[int, int]]:
         """Get child counts for multiple todos in a single query."""
         if not todo_ids:
             return {}
@@ -123,10 +119,7 @@ class SQLAlchemyTodoRepository:
             .group_by(TodoModel.parent_id)
         )
         result = await self._session.execute(stmt)
-        return {
-            row.parent_id: (row.child_count, row.completed_child_count or 0)
-            for row in result
-        }
+        return {row.parent_id: (row.child_count, row.completed_child_count or 0) for row in result}
 
     def _to_entity(self, model: TodoModel) -> Todo:
         """Convert ORM model to domain entity."""

@@ -5,17 +5,16 @@ Revises: 9e8450bf0bd1
 Create Date: 2026-02-02 19:07:20.939715
 
 """
-from typing import Sequence, Union
+
+from collections.abc import Sequence
 
 from alembic import op
-import sqlalchemy as sa
-
 
 # revision identifiers, used by Alembic.
-revision: str = '53cf28d4c70f'
-down_revision: Union[str, Sequence[str], None] = '9e8450bf0bd1'
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+revision: str = "53cf28d4c70f"
+down_revision: str | Sequence[str] | None = "9e8450bf0bd1"
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
@@ -42,8 +41,14 @@ def upgrade() -> None:
     """)
 
     # --- Enable RLS on tables ---
-    for table in ['workspaces', 'workspace_members', 'todos', 'tags',
-                  'invitations', 'activity_log']:
+    for table in [
+        "workspaces",
+        "workspace_members",
+        "todos",
+        "tags",
+        "invitations",
+        "activity_log",
+    ]:
         op.execute(f"ALTER TABLE {table} ENABLE ROW LEVEL SECURITY;")
 
     # --- Workspaces policies ---
@@ -242,32 +247,38 @@ def downgrade() -> None:
     """Drop all RLS policies and disable RLS."""
     # Drop policies
     policies = [
-        ('activity_log_insert', 'activity_log'),
-        ('activity_log_select', 'activity_log'),
-        ('invitations_insert', 'invitations'),
-        ('invitations_select', 'invitations'),
-        ('tags_delete', 'tags'),
-        ('tags_update', 'tags'),
-        ('tags_insert', 'tags'),
-        ('tags_select', 'tags'),
-        ('todos_delete', 'todos'),
-        ('todos_update', 'todos'),
-        ('todos_insert', 'todos'),
-        ('todos_select', 'todos'),
-        ('members_delete', 'workspace_members'),
-        ('members_insert', 'workspace_members'),
-        ('members_select', 'workspace_members'),
-        ('workspace_delete', 'workspaces'),
-        ('workspace_update', 'workspaces'),
-        ('workspace_insert', 'workspaces'),
-        ('workspace_select', 'workspaces'),
+        ("activity_log_insert", "activity_log"),
+        ("activity_log_select", "activity_log"),
+        ("invitations_insert", "invitations"),
+        ("invitations_select", "invitations"),
+        ("tags_delete", "tags"),
+        ("tags_update", "tags"),
+        ("tags_insert", "tags"),
+        ("tags_select", "tags"),
+        ("todos_delete", "todos"),
+        ("todos_update", "todos"),
+        ("todos_insert", "todos"),
+        ("todos_select", "todos"),
+        ("members_delete", "workspace_members"),
+        ("members_insert", "workspace_members"),
+        ("members_select", "workspace_members"),
+        ("workspace_delete", "workspaces"),
+        ("workspace_update", "workspaces"),
+        ("workspace_insert", "workspaces"),
+        ("workspace_select", "workspaces"),
     ]
     for policy_name, table_name in policies:
         op.execute(f"DROP POLICY IF EXISTS {policy_name} ON {table_name};")
 
     # Disable RLS
-    for table in ['activity_log', 'invitations', 'tags', 'todos',
-                  'workspace_members', 'workspaces']:
+    for table in [
+        "activity_log",
+        "invitations",
+        "tags",
+        "todos",
+        "workspace_members",
+        "workspaces",
+    ]:
         op.execute(f"ALTER TABLE {table} DISABLE ROW LEVEL SECURITY;")
 
     # Drop helper function

@@ -92,9 +92,7 @@ class SQLAlchemyWorkspaceRepository:
         await self._session.flush()
         return True
 
-    async def get_member(
-        self, workspace_id: UUID, user_id: UUID
-    ) -> WorkspaceMember | None:
+    async def get_member(self, workspace_id: UUID, user_id: UUID) -> WorkspaceMember | None:
         """Get a workspace member by workspace and user IDs."""
         stmt = select(WorkspaceMemberModel).where(
             WorkspaceMemberModel.workspace_id == workspace_id,

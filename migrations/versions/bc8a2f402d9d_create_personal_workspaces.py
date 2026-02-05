@@ -5,18 +5,17 @@ Revises: f3367ee49136
 Create Date: 2026-02-02 18:06:17.931121
 
 """
-from typing import Sequence, Union
+
+from collections.abc import Sequence
 
 from alembic import op
-import sqlalchemy as sa
 from sqlalchemy import text
 
-
 # revision identifiers, used by Alembic.
-revision: str = 'bc8a2f402d9d'
-down_revision: Union[str, Sequence[str], None] = 'f3367ee49136'
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+revision: str = "bc8a2f402d9d"
+down_revision: str | Sequence[str] | None = "f3367ee49136"
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
@@ -24,7 +23,8 @@ def upgrade() -> None:
     conn = op.get_bind()
 
     # For each profile, create a personal workspace, add as owner, and migrate data
-    conn.execute(text("""
+    conn.execute(
+        text("""
         WITH new_workspaces AS (
             INSERT INTO workspaces (id, name, slug, description, created_by, settings, created_at, updated_at)
             SELECT
@@ -54,18 +54,19 @@ def upgrade() -> None:
         SET workspace_id = nw.id
         FROM new_workspaces nw
         WHERE tags.user_id = nw.created_by
-    """))
+    """)
+    )
 
     # Now make workspace_id NOT NULL on both tables
-    op.alter_column('todos', 'workspace_id', nullable=False)
-    op.alter_column('tags', 'workspace_id', nullable=False)
+    op.alter_column("todos", "workspace_id", nullable=False)
+    op.alter_column("tags", "workspace_id", nullable=False)
 
 
 def downgrade() -> None:
     """Revert workspace_id to nullable and remove personal workspaces."""
     # Make workspace_id nullable again
-    op.alter_column('todos', 'workspace_id', nullable=True)
-    op.alter_column('tags', 'workspace_id', nullable=True)
+    op.alter_column("todos", "workspace_id", nullable=True)
+    op.alter_column("tags", "workspace_id", nullable=True)
 
     conn = op.get_bind()
 

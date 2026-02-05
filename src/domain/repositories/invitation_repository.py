@@ -35,9 +35,7 @@ class IInvitationRepository(Protocol):
         """Get a pending invitation for a specific workspace and email."""
         ...
 
-    async def update_status(
-        self, id: UUID, status: InvitationStatus
-    ) -> Invitation:
+    async def update_status(self, id: UUID, status: InvitationStatus) -> Invitation:
         """Update the status of an invitation."""
         ...
 

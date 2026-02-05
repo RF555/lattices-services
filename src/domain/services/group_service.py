@@ -30,29 +30,21 @@ class GroupService:
         self._uow_factory = uow_factory
         self._notification = notification_service
 
-    async def get_for_workspace(
-        self, workspace_id: UUID, user_id: UUID
-    ) -> list[Group]:
+    async def get_for_workspace(self, workspace_id: UUID, user_id: UUID) -> list[Group]:
         """Get all groups in a workspace. Requires membership."""
         async with self._uow_factory() as uow:
             workspace = await uow.workspaces.get(workspace_id)
             if not workspace:
                 raise WorkspaceNotFoundError(str(workspace_id))
 
-            await self._require_workspace_role(
-                uow, workspace_id, user_id, WorkspaceRole.VIEWER
-            )
+            await self._require_workspace_role(uow, workspace_id, user_id, WorkspaceRole.VIEWER)
 
             return await uow.groups.get_for_workspace(workspace_id)  # type: ignore[no-any-return]
 
-    async def get_by_id(
-        self, workspace_id: UUID, group_id: UUID, user_id: UUID
-    ) -> Group:
+    async def get_by_id(self, workspace_id: UUID, group_id: UUID, user_id: UUID) -> Group:
         """Get a group by ID. Requires workspace membership."""
         async with self._uow_factory() as uow:
-            await self._require_workspace_role(
-                uow, workspace_id, user_id, WorkspaceRole.VIEWER
-            )
+            await self._require_workspace_role(uow, workspace_id, user_id, WorkspaceRole.VIEWER)
 
             group = await uow.groups.get(group_id)
             if not group or group.workspace_id != workspace_id:
@@ -73,9 +65,7 @@ class GroupService:
             if not workspace:
                 raise WorkspaceNotFoundError(str(workspace_id))
 
-            await self._require_workspace_role(
-                uow, workspace_id, user_id, WorkspaceRole.ADMIN
-            )
+            await self._require_workspace_role(uow, workspace_id, user_id, WorkspaceRole.ADMIN)
 
             group = Group(
                 workspace_id=workspace_id,
@@ -112,9 +102,7 @@ class GroupService:
                 raise GroupNotFoundError(str(group_id))
 
             # Check permission: workspace admin+ OR group admin
-            await self._require_group_or_workspace_admin(
-                uow, workspace_id, group_id, user_id
-            )
+            await self._require_group_or_workspace_admin(uow, workspace_id, group_id, user_id)
 
             if name is not None:
                 group.name = name
@@ -125,18 +113,14 @@ class GroupService:
             await uow.commit()
             return updated
 
-    async def delete(
-        self, workspace_id: UUID, group_id: UUID, user_id: UUID
-    ) -> bool:
+    async def delete(self, workspace_id: UUID, group_id: UUID, user_id: UUID) -> bool:
         """Delete a group. Requires workspace Admin+ role."""
         async with self._uow_factory() as uow:
             group = await uow.groups.get(group_id)
             if not group or group.workspace_id != workspace_id:
                 raise GroupNotFoundError(str(group_id))
 
-            await self._require_workspace_role(
-                uow, workspace_id, user_id, WorkspaceRole.ADMIN
-            )
+            await self._require_workspace_role(uow, workspace_id, user_id, WorkspaceRole.ADMIN)
 
             deleted = await uow.groups.delete(group_id)
             await uow.commit()
@@ -151,9 +135,7 @@ class GroupService:
             if not group or group.workspace_id != workspace_id:
                 raise GroupNotFoundError(str(group_id))
 
-            await self._require_workspace_role(
-                uow, workspace_id, user_id, WorkspaceRole.VIEWER
-            )
+            await self._require_workspace_role(uow, workspace_id, user_id, WorkspaceRole.VIEWER)
 
             return await uow.groups.get_members(group_id)  # type: ignore[no-any-return]
 
@@ -172,9 +154,7 @@ class GroupService:
             if not group or group.workspace_id != workspace_id:
                 raise GroupNotFoundError(str(group_id))
 
-            await self._require_group_or_workspace_admin(
-                uow, workspace_id, group_id, user_id
-            )
+            await self._require_group_or_workspace_admin(uow, workspace_id, group_id, user_id)
 
             # Verify target is a workspace member
             ws_member = await uow.workspaces.get_member(workspace_id, target_user_id)
@@ -235,9 +215,7 @@ class GroupService:
 
             is_self = user_id == target_user_id
             if not is_self:
-                await self._require_group_or_workspace_admin(
-                    uow, workspace_id, group_id, user_id
-                )
+                await self._require_group_or_workspace_admin(uow, workspace_id, group_id, user_id)
 
             removed = await uow.groups.remove_member(group_id, target_user_id)
             await uow.commit()

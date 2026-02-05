@@ -354,12 +354,8 @@ class ActivityLogModel(Base):
     entity_type: Mapped[str] = mapped_column(String(50), nullable=False)
     entity_id: Mapped[UUID] = mapped_column(PG_UUID(as_uuid=True), nullable=False)
     changes: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
-    metadata_: Mapped[dict[str, Any] | None] = mapped_column(
-        "metadata", JSONB
-    )
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime, default=datetime.utcnow, nullable=False
-    )
+    metadata_: Mapped[dict[str, Any] | None] = mapped_column("metadata", JSONB)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
 
     # Relationships
     workspace: Mapped["WorkspaceModel"] = relationship("WorkspaceModel")
@@ -449,9 +445,7 @@ class NotificationTypeModel(Base):
     name: Mapped[str] = mapped_column(String(50), unique=True, nullable=False)
     description: Mapped[str | None] = mapped_column(Text)
     template: Mapped[str] = mapped_column(Text, nullable=False)
-    default_channels: Mapped[dict[str, Any]] = mapped_column(
-        JSONB, default=lambda: ["in_app"]
-    )
+    default_channels: Mapped[dict[str, Any]] = mapped_column(JSONB, default=lambda: ["in_app"])
     is_mandatory: Mapped[bool] = mapped_column(Boolean, default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
@@ -484,18 +478,12 @@ class NotificationModel(Base):
     )
     entity_type: Mapped[str] = mapped_column(String(50), nullable=False)
     entity_id: Mapped[UUID] = mapped_column(PG_UUID(as_uuid=True), nullable=False)
-    metadata_: Mapped[dict[str, Any] | None] = mapped_column(
-        "metadata", JSONB
-    )
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime, default=datetime.utcnow, nullable=False
-    )
+    metadata_: Mapped[dict[str, Any] | None] = mapped_column("metadata", JSONB)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
     expires_at: Mapped[datetime | None] = mapped_column(DateTime)
 
     # Relationships
-    notification_type: Mapped["NotificationTypeModel"] = relationship(
-        "NotificationTypeModel"
-    )
+    notification_type: Mapped["NotificationTypeModel"] = relationship("NotificationTypeModel")
     workspace: Mapped["WorkspaceModel"] = relationship("WorkspaceModel")
     actor: Mapped["ProfileModel"] = relationship("ProfileModel")
 
@@ -504,9 +492,7 @@ class NotificationRecipientModel(Base):
     """Per-user notification delivery model."""
 
     __tablename__ = "notification_recipients"
-    __table_args__ = (
-        UniqueConstraint("notification_id", "recipient_id"),
-    )
+    __table_args__ = (UniqueConstraint("notification_id", "recipient_id"),)
 
     id: Mapped[UUID] = mapped_column(
         PG_UUID(as_uuid=True),
@@ -537,11 +523,7 @@ class NotificationPreferenceModel(Base):
     """User notification preference model."""
 
     __tablename__ = "notification_preferences"
-    __table_args__ = (
-        UniqueConstraint(
-            "user_id", "workspace_id", "notification_type", "channel"
-        ),
-    )
+    __table_args__ = (UniqueConstraint("user_id", "workspace_id", "notification_type", "channel"),)
 
     id: Mapped[UUID] = mapped_column(
         PG_UUID(as_uuid=True),
@@ -559,7 +541,5 @@ class NotificationPreferenceModel(Base):
         ForeignKey("workspaces.id", ondelete="CASCADE"),
     )
     notification_type: Mapped[str | None] = mapped_column(String(50))
-    channel: Mapped[str] = mapped_column(
-        String(20), nullable=False, default="in_app"
-    )
+    channel: Mapped[str] = mapped_column(String(20), nullable=False, default="in_app")
     enabled: Mapped[bool] = mapped_column(Boolean, default=True)

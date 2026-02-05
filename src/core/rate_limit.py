@@ -14,9 +14,7 @@ limiter = Limiter(
 )
 
 
-async def rate_limit_exceeded_handler(
-    request: Request, exc: Exception
-) -> JSONResponse:
+async def rate_limit_exceeded_handler(request: Request, exc: Exception) -> JSONResponse:
     """Handle rate limit exceeded errors."""
     detail = exc.detail if isinstance(exc, RateLimitExceeded) else str(exc)
     return JSONResponse(

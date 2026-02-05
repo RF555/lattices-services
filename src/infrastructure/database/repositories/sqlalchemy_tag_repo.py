@@ -25,27 +25,17 @@ class SQLAlchemyTagRepository:
 
     async def get_all_for_user(self, user_id: UUID) -> list[Tag]:
         """Get all tags for a user."""
-        stmt = (
-            select(TagModel)
-            .where(TagModel.user_id == user_id)
-            .order_by(TagModel.name)
-        )
+        stmt = select(TagModel).where(TagModel.user_id == user_id).order_by(TagModel.name)
         result = await self._session.execute(stmt)
         return [self._to_entity(model) for model in result.scalars()]
 
     async def get_all_for_workspace(self, workspace_id: UUID) -> list[Tag]:
         """Get all tags for a workspace."""
-        stmt = (
-            select(TagModel)
-            .where(TagModel.workspace_id == workspace_id)
-            .order_by(TagModel.name)
-        )
+        stmt = select(TagModel).where(TagModel.workspace_id == workspace_id).order_by(TagModel.name)
         result = await self._session.execute(stmt)
         return [self._to_entity(model) for model in result.scalars()]
 
-    async def get_by_name_in_workspace(
-        self, workspace_id: UUID, name: str
-    ) -> Tag | None:
+    async def get_by_name_in_workspace(self, workspace_id: UUID, name: str) -> Tag | None:
         """Get a tag by name within a workspace."""
         stmt = select(TagModel).where(
             TagModel.workspace_id == workspace_id,
@@ -157,11 +147,7 @@ class SQLAlchemyTagRepository:
 
     async def get_usage_count(self, tag_id: UUID) -> int:
         """Get the number of todos using this tag."""
-        stmt = (
-            select(func.count())
-            .select_from(TodoTagModel)
-            .where(TodoTagModel.tag_id == tag_id)
-        )
+        stmt = select(func.count()).select_from(TodoTagModel).where(TodoTagModel.tag_id == tag_id)
         result = await self._session.execute(stmt)
         return result.scalar() or 0
 

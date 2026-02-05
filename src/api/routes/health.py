@@ -57,7 +57,7 @@ async def detailed_health_check(
         await db.execute(text("SELECT 1"))
         db_status = "healthy"
     except Exception as e:
-        db_status = f"unhealthy: {str(e)}"
+        db_status = f"unhealthy: {e!s}"
 
     overall_status = "healthy" if db_status == "healthy" else "degraded"
 

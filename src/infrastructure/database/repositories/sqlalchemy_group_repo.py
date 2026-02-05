@@ -68,9 +68,7 @@ class SQLAlchemyGroupRepository:
         await self._session.flush()
         return True
 
-    async def get_member(
-        self, group_id: UUID, user_id: UUID
-    ) -> GroupMember | None:
+    async def get_member(self, group_id: UUID, user_id: UUID) -> GroupMember | None:
         """Get a specific group member."""
         stmt = select(GroupMemberModel).where(
             GroupMemberModel.group_id == group_id,

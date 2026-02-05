@@ -166,11 +166,7 @@ async def update_todo(
     Circular references are automatically detected and rejected.
     """
     # Handle parent_id sentinel value: only pass it if explicitly set in request
-    parent_id = (
-        ...
-        if "parent_id" not in body.model_fields_set
-        else body.parent_id
-    )
+    parent_id = ... if "parent_id" not in body.model_fields_set else body.parent_id
 
     todo = await todo_service.update(
         todo_id=todo_id,
@@ -224,10 +220,7 @@ def _build_todo_response(
         created_at=todo.created_at,
         updated_at=todo.updated_at,
         completed_at=todo.completed_at,
-        tags=[
-            TagSummary(id=t.id, name=t.name, color_hex=t.color_hex)
-            for t in tags
-        ],
+        tags=[TagSummary(id=t.id, name=t.name, color_hex=t.color_hex) for t in tags],
         child_count=child_count,
         completed_child_count=completed_child_count,
     )

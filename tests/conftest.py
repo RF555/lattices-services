@@ -19,9 +19,9 @@ from sqlalchemy.ext.compiler import compiles
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-from infrastructure.auth.jwt_provider import JWTAuthProvider  # noqa: E402
-from infrastructure.auth.provider import TokenUser  # noqa: E402
-from infrastructure.database.models import Base, ProfileModel  # noqa: E402
+from infrastructure.auth.jwt_provider import JWTAuthProvider
+from infrastructure.auth.provider import TokenUser
+from infrastructure.database.models import Base, ProfileModel
 
 
 # Compile JSONB as JSON for SQLite (used in tests)
