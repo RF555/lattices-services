@@ -1,5 +1,6 @@
 """Invitation API routes."""
 
+from typing import TYPE_CHECKING
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Request, status
@@ -16,6 +17,9 @@ from api.v1.schemas.invitation import (
 )
 from core.rate_limit import limiter
 from domain.services.invitation_service import InvitationService
+
+if TYPE_CHECKING:
+    from domain.entities.workspace import WorkspaceMember
 
 # Workspace-scoped invitation routes
 workspace_invitations_router = APIRouter(
@@ -142,7 +146,7 @@ async def revoke_invitation(
 @invitations_router.post(
     "/accept",
     response_model=AcceptInvitationResponse,
-    summary="Accept invitation",
+    summary="Accept invitation by token",
     responses={
         200: {"description": "Invitation accepted, user added to workspace"},
         400: {"description": "Invitation expired or invalid"},
@@ -158,19 +162,51 @@ async def accept_invitation(
     user: CurrentUser,
     service: InvitationService = Depends(get_invitation_service),
 ) -> AcceptInvitationResponse:
-    """Accept a workspace invitation using the invitation token."""
+    """Accept a workspace invitation using the invitation token (link-based flow)."""
     member = await service.accept_invitation(
         token=body.token,
         user_id=user.id,
         user_email=user.email,
+        actor_name=getattr(user, "display_name", None),
     )
+    return _build_accept_response(member)
 
-    role_str = member.role.name.lower()
 
+@invitations_router.post(
+    "/{invitation_id}/accept",
+    response_model=AcceptInvitationResponse,
+    summary="Accept invitation by ID",
+    responses={
+        200: {"description": "Invitation accepted, user added to workspace"},
+        400: {"description": "Invitation expired or invalid"},
+        403: {"description": "Email mismatch"},
+        404: {"description": "Invitation not found"},
+        409: {"description": "Already a member"},
+    },
+)
+@limiter.limit("10/minute")  # type: ignore[untyped-decorator]
+async def accept_invitation_by_id(
+    request: Request,
+    invitation_id: UUID,
+    user: CurrentUser,
+    service: InvitationService = Depends(get_invitation_service),
+) -> AcceptInvitationResponse:
+    """Accept a workspace invitation by its ID (in-app banner flow)."""
+    member = await service.accept_by_id(
+        invitation_id=invitation_id,
+        user_id=user.id,
+        user_email=user.email,
+        actor_name=getattr(user, "display_name", None),
+    )
+    return _build_accept_response(member)
+
+
+def _build_accept_response(member: "WorkspaceMember") -> AcceptInvitationResponse:
+    """Build AcceptInvitationResponse from a WorkspaceMember."""
     return AcceptInvitationResponse(
         workspace_id=member.workspace_id,
-        workspace_name="",  # Would need workspace lookup for name
-        role=role_str,
+        workspace_name="",
+        role=member.role.name.lower(),
     )
 
 

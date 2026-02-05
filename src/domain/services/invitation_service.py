@@ -128,70 +128,114 @@ class InvitationService:
             if not invitation:
                 raise InvitationNotFoundError()
 
-            # Check status
-            if invitation.status == InvitationStatus.ACCEPTED:
-                raise InvitationAlreadyAcceptedError()
-            if invitation.status != InvitationStatus.PENDING:
+            return await self._process_acceptance(invitation, user_id, user_email, actor_name, uow)
+
+    async def accept_by_id(
+        self,
+        invitation_id: UUID,
+        user_id: UUID,
+        user_email: str,
+        actor_name: str | None = None,
+    ) -> WorkspaceMember:
+        """Accept a workspace invitation by its ID (for in-app banner flow).
+
+        Args:
+            invitation_id: The invitation UUID.
+            user_id: The user accepting the invitation.
+            user_email: The email of the accepting user (for verification).
+            actor_name: Optional display name of the accepting user.
+
+        Returns:
+            The new WorkspaceMember created from the invitation.
+
+        Raises:
+            InvitationNotFoundError: If invitation ID does not exist.
+            InvitationExpiredError: If the invitation has expired.
+            InvitationAlreadyAcceptedError: If already accepted.
+            InvitationEmailMismatchError: If user email doesn't match.
+            AlreadyAMemberError: If user is already a workspace member.
+        """
+        async with self._uow_factory() as uow:
+            invitation = await uow.invitations.get_by_id(invitation_id)
+
+            if not invitation:
                 raise InvitationNotFoundError()
 
-            # Check expiry
-            if invitation.is_expired:
-                await uow.invitations.update_status(invitation.id, InvitationStatus.EXPIRED)
-                await uow.commit()
-                raise InvitationExpiredError()
+            return await self._process_acceptance(invitation, user_id, user_email, actor_name, uow)
 
-            # Verify email matches
-            if user_email.lower().strip() != invitation.email.lower().strip():
-                raise InvitationEmailMismatchError()
+    async def _process_acceptance(
+        self,
+        invitation: Invitation,
+        user_id: UUID,
+        user_email: str,
+        actor_name: str | None,
+        uow: IUnitOfWork,
+    ) -> WorkspaceMember:
+        """Shared validation and acceptance logic for both token and ID flows."""
+        # Check status
+        if invitation.status == InvitationStatus.ACCEPTED:
+            raise InvitationAlreadyAcceptedError()
+        if invitation.status != InvitationStatus.PENDING:
+            raise InvitationNotFoundError()
 
-            # Check if user is already a member
-            existing_member = await uow.workspaces.get_member(invitation.workspace_id, user_id)
-            if existing_member:
-                # Mark invitation as accepted anyway to prevent reuse
-                await uow.invitations.update_status(invitation.id, InvitationStatus.ACCEPTED)
-                await uow.commit()
-                raise AlreadyAMemberError(str(user_id))
-
-            # Map role string to enum
-            role_map = {
-                "admin": WorkspaceRole.ADMIN,
-                "member": WorkspaceRole.MEMBER,
-                "viewer": WorkspaceRole.VIEWER,
-            }
-            role = role_map.get(invitation.role, WorkspaceRole.MEMBER)
-
-            # Add user as workspace member
-            member = WorkspaceMember(
-                workspace_id=invitation.workspace_id,
-                user_id=user_id,
-                role=role,
-                invited_by=invitation.invited_by,
-            )
-            added = await uow.workspaces.add_member(member)
-
-            # Mark invitation as accepted
-            await uow.invitations.update_status(invitation.id, InvitationStatus.ACCEPTED)
-
-            # Notify the inviter that the invitation was accepted
-            if self._notification:
-                workspace = await uow.workspaces.get(invitation.workspace_id)
-                workspace_name = workspace.name if workspace else ""
-                await self._notification.notify(
-                    uow=uow,
-                    type_name=NotificationTypes.INVITATION_ACCEPTED,
-                    workspace_id=invitation.workspace_id,
-                    actor_id=user_id,
-                    entity_type="invitation",
-                    entity_id=invitation.id,
-                    recipient_ids=[invitation.invited_by],
-                    metadata={
-                        "actor_name": actor_name or user_email,
-                        "workspace_name": workspace_name,
-                    },
-                )
-
+        # Check expiry
+        if invitation.is_expired:
+            await uow.invitations.update_status(invitation.id, InvitationStatus.EXPIRED)
             await uow.commit()
-            return added
+            raise InvitationExpiredError()
+
+        # Verify email matches
+        if user_email.lower().strip() != invitation.email.lower().strip():
+            raise InvitationEmailMismatchError()
+
+        # Check if user is already a member
+        existing_member = await uow.workspaces.get_member(invitation.workspace_id, user_id)
+        if existing_member:
+            # Mark invitation as accepted anyway to prevent reuse
+            await uow.invitations.update_status(invitation.id, InvitationStatus.ACCEPTED)
+            await uow.commit()
+            raise AlreadyAMemberError(str(user_id))
+
+        # Map role string to enum
+        role_map = {
+            "admin": WorkspaceRole.ADMIN,
+            "member": WorkspaceRole.MEMBER,
+            "viewer": WorkspaceRole.VIEWER,
+        }
+        role = role_map.get(invitation.role, WorkspaceRole.MEMBER)
+
+        # Add user as workspace member
+        member = WorkspaceMember(
+            workspace_id=invitation.workspace_id,
+            user_id=user_id,
+            role=role,
+            invited_by=invitation.invited_by,
+        )
+        added = await uow.workspaces.add_member(member)
+
+        # Mark invitation as accepted
+        await uow.invitations.update_status(invitation.id, InvitationStatus.ACCEPTED)
+
+        # Notify the inviter that the invitation was accepted
+        if self._notification:
+            workspace = await uow.workspaces.get(invitation.workspace_id)
+            workspace_name = workspace.name if workspace else ""
+            await self._notification.notify(
+                uow=uow,
+                type_name=NotificationTypes.INVITATION_ACCEPTED,
+                workspace_id=invitation.workspace_id,
+                actor_id=user_id,
+                entity_type="invitation",
+                entity_id=invitation.id,
+                recipient_ids=[invitation.invited_by],
+                metadata={
+                    "actor_name": actor_name or user_email,
+                    "workspace_name": workspace_name,
+                },
+            )
+
+        await uow.commit()
+        return added
 
     async def revoke_invitation(
         self,

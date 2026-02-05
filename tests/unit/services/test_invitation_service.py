@@ -334,6 +334,151 @@ class TestAcceptInvitation:
         )
 
 
+# --- accept_by_id ---
+
+
+class TestAcceptById:
+    @pytest.mark.asyncio
+    async def test_accepts_by_id_and_creates_member(
+        self,
+        service: InvitationService,
+        uow: FakeUnitOfWork,
+        workspace_id: UUID,
+        user_id: UUID,
+    ):
+        invitation_id = uuid4()
+        inviter_id = uuid4()
+        invitation = Invitation(
+            id=invitation_id,
+            workspace_id=workspace_id,
+            email="new@example.com",
+            role="member",
+            token_hash="irrelevant",
+            invited_by=inviter_id,
+            status=InvitationStatus.PENDING,
+            expires_at=datetime.utcnow() + timedelta(days=7),
+        )
+
+        uow.invitations.get_by_id.return_value = invitation
+        uow.workspaces.get_member.return_value = None  # not yet a member
+        new_member = WorkspaceMember(
+            workspace_id=workspace_id, user_id=user_id, role=WorkspaceRole.MEMBER
+        )
+        uow.workspaces.add_member.return_value = new_member
+
+        result = await service.accept_by_id(
+            invitation_id=invitation_id, user_id=user_id, user_email="new@example.com"
+        )
+
+        assert result.workspace_id == workspace_id
+        assert result.user_id == user_id
+        uow.workspaces.add_member.assert_called_once()
+        uow.invitations.update_status.assert_called_once_with(
+            invitation.id, InvitationStatus.ACCEPTED
+        )
+        assert uow.committed
+
+    @pytest.mark.asyncio
+    async def test_raises_not_found_for_nonexistent_id(
+        self, service: InvitationService, uow: FakeUnitOfWork, user_id: UUID
+    ):
+        uow.invitations.get_by_id.return_value = None
+
+        with pytest.raises(InvitationNotFoundError):
+            await service.accept_by_id(
+                invitation_id=uuid4(), user_id=user_id, user_email="t@example.com"
+            )
+
+    @pytest.mark.asyncio
+    async def test_raises_expired_by_id(
+        self,
+        service: InvitationService,
+        uow: FakeUnitOfWork,
+        workspace_id: UUID,
+        user_id: UUID,
+    ):
+        invitation_id = uuid4()
+        invitation = Invitation(
+            id=invitation_id,
+            workspace_id=workspace_id,
+            email="t@example.com",
+            role="member",
+            token_hash="irrelevant",
+            invited_by=uuid4(),
+            status=InvitationStatus.PENDING,
+            expires_at=datetime.utcnow() - timedelta(days=1),
+        )
+        uow.invitations.get_by_id.return_value = invitation
+
+        with pytest.raises(InvitationExpiredError):
+            await service.accept_by_id(
+                invitation_id=invitation_id, user_id=user_id, user_email="t@example.com"
+            )
+
+        uow.invitations.update_status.assert_called_once_with(
+            invitation.id, InvitationStatus.EXPIRED
+        )
+
+    @pytest.mark.asyncio
+    async def test_raises_email_mismatch_by_id(
+        self,
+        service: InvitationService,
+        uow: FakeUnitOfWork,
+        workspace_id: UUID,
+        user_id: UUID,
+    ):
+        invitation_id = uuid4()
+        invitation = Invitation(
+            id=invitation_id,
+            workspace_id=workspace_id,
+            email="invited@example.com",
+            role="member",
+            token_hash="irrelevant",
+            invited_by=uuid4(),
+            status=InvitationStatus.PENDING,
+            expires_at=datetime.utcnow() + timedelta(days=7),
+        )
+        uow.invitations.get_by_id.return_value = invitation
+
+        with pytest.raises(InvitationEmailMismatchError):
+            await service.accept_by_id(
+                invitation_id=invitation_id, user_id=user_id, user_email="other@example.com"
+            )
+
+    @pytest.mark.asyncio
+    async def test_raises_already_a_member_by_id(
+        self,
+        service: InvitationService,
+        uow: FakeUnitOfWork,
+        workspace_id: UUID,
+        user_id: UUID,
+    ):
+        invitation_id = uuid4()
+        invitation = Invitation(
+            id=invitation_id,
+            workspace_id=workspace_id,
+            email="t@example.com",
+            role="member",
+            token_hash="irrelevant",
+            invited_by=uuid4(),
+            status=InvitationStatus.PENDING,
+            expires_at=datetime.utcnow() + timedelta(days=7),
+        )
+        uow.invitations.get_by_id.return_value = invitation
+        uow.workspaces.get_member.return_value = WorkspaceMember(
+            workspace_id=workspace_id, user_id=user_id, role=WorkspaceRole.MEMBER
+        )
+
+        with pytest.raises(AlreadyAMemberError):
+            await service.accept_by_id(
+                invitation_id=invitation_id, user_id=user_id, user_email="t@example.com"
+            )
+
+        uow.invitations.update_status.assert_called_once_with(
+            invitation.id, InvitationStatus.ACCEPTED
+        )
+
+
 # --- revoke_invitation ---
 
 

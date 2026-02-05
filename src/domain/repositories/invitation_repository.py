@@ -13,6 +13,10 @@ class IInvitationRepository(Protocol):
         """Create a new invitation."""
         ...
 
+    async def get_by_id(self, id: UUID) -> Invitation | None:
+        """Get an invitation by its primary key."""
+        ...
+
     async def get_by_token_hash(self, token_hash: str) -> Invitation | None:
         """Get an invitation by its hashed token."""
         ...

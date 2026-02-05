@@ -24,6 +24,13 @@ class SQLAlchemyInvitationRepository:
         await self._session.refresh(model)
         return self._to_entity(model)
 
+    async def get_by_id(self, id: UUID) -> Invitation | None:
+        """Get an invitation by its primary key."""
+        stmt = select(InvitationModel).where(InvitationModel.id == id)
+        result = await self._session.execute(stmt)
+        model = result.scalar_one_or_none()
+        return self._to_entity(model) if model else None
+
     async def get_by_token_hash(self, token_hash: str) -> Invitation | None:
         """Get an invitation by its hashed token."""
         stmt = select(InvitationModel).where(InvitationModel.token_hash == token_hash)

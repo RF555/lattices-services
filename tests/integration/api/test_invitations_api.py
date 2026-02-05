@@ -245,6 +245,99 @@ class TestInvitationAccept:
         app2.dependency_overrides.clear()
 
     @pytest.mark.asyncio
+    async def test_accept_by_id_full_flow(
+        self,
+        invitation_client: AsyncClient,
+        inv_workspace_id: str,
+        session_factory: async_sessionmaker,
+        test_user: TokenUser,
+        auth_provider: JWTAuthProvider,
+    ):
+        """Full accept-by-ID flow: create invite, accept by invitation ID."""
+        # Create invitation for a specific email
+        create_resp = await invitation_client.post(
+            f"/api/v1/workspaces/{inv_workspace_id}/invitations",
+            json={"email": "id-acceptee@example.com", "role": "member"},
+        )
+        invitation_id = create_resp.json()["data"]["id"]
+
+        # Create a second user that matches the invitation email
+        second_user_id = uuid4()
+        second_user = TokenUser(
+            id=second_user_id,
+            email="id-acceptee@example.com",
+            display_name="ID Acceptee",
+        )
+        async with session_factory() as session:
+            profile = ProfileModel(
+                id=second_user_id,
+                email="id-acceptee@example.com",
+                display_name="ID Acceptee",
+            )
+            session.add(profile)
+            await session.commit()
+
+        # Create a second client authenticated as the acceptee
+        from api.dependencies.auth import get_auth_provider, get_current_user
+        from api.v1.dependencies import (
+            get_activity_service,
+            get_group_service,
+            get_invitation_service,
+            get_tag_service,
+            get_todo_service,
+            get_workspace_service,
+        )
+        from domain.services.activity_service import ActivityService
+        from domain.services.group_service import GroupService
+        from domain.services.invitation_service import InvitationService
+        from domain.services.tag_service import TagService
+        from domain.services.todo_service import TodoService
+        from domain.services.workspace_service import WorkspaceService
+        from infrastructure.database.sqlalchemy_uow import SQLAlchemyUnitOfWork
+        from main import create_app
+
+        app2 = create_app()
+
+        async def override_get_user2():
+            return second_user
+
+        def test_uow_factory():
+            return SQLAlchemyUnitOfWork(session_factory)
+
+        activity_service = ActivityService(test_uow_factory)
+
+        app2.dependency_overrides[get_current_user] = override_get_user2
+        app2.dependency_overrides[get_auth_provider] = lambda: auth_provider
+        app2.dependency_overrides[get_workspace_service] = lambda: WorkspaceService(
+            test_uow_factory, activity_service=activity_service
+        )
+        app2.dependency_overrides[get_invitation_service] = lambda: InvitationService(
+            test_uow_factory
+        )
+        app2.dependency_overrides[get_group_service] = lambda: GroupService(test_uow_factory)
+        app2.dependency_overrides[get_activity_service] = lambda: activity_service
+        app2.dependency_overrides[get_todo_service] = lambda: TodoService(test_uow_factory)
+        app2.dependency_overrides[get_tag_service] = lambda: TagService(test_uow_factory)
+
+        transport2 = ASGITransport(app=app2)
+        async with AsyncClient(transport=transport2, base_url="http://test") as c2:
+            response = await c2.post(f"/api/v1/invitations/{invitation_id}/accept")
+
+        assert response.status_code == 200
+        assert response.json()["workspace_id"] == inv_workspace_id
+
+        app2.dependency_overrides.clear()
+
+    @pytest.mark.asyncio
+    async def test_accept_by_id_nonexistent(self, invitation_client: AsyncClient):
+        """Accepting with non-existent invitation ID returns 404."""
+        response = await invitation_client.post(
+            f"/api/v1/invitations/{uuid4()}/accept",
+        )
+
+        assert response.status_code == 404
+
+    @pytest.mark.asyncio
     async def test_accept_with_invalid_token(self, invitation_client: AsyncClient):
         """Accepting with bad token returns 404."""
         response = await invitation_client.post(
