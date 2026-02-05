@@ -2,7 +2,6 @@
 
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Optional
 from uuid import UUID, uuid4
 
 
@@ -13,7 +12,7 @@ class Tag:
     user_id: UUID
     name: str
     id: UUID = field(default_factory=uuid4)
-    workspace_id: Optional[UUID] = None
+    workspace_id: UUID | None = None
     color_hex: str = "#3B82F6"  # Default blue
     created_at: datetime = field(default_factory=datetime.utcnow)
 

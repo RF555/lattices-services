@@ -1,6 +1,6 @@
 """Workspace repository protocol."""
 
-from typing import List, Optional, Protocol
+from typing import Protocol
 from uuid import UUID
 
 from domain.entities.workspace import Workspace, WorkspaceMember, WorkspaceRole
@@ -9,15 +9,15 @@ from domain.entities.workspace import Workspace, WorkspaceMember, WorkspaceRole
 class IWorkspaceRepository(Protocol):
     """Repository interface for Workspace entities."""
 
-    async def get(self, id: UUID) -> Optional[Workspace]:
+    async def get(self, id: UUID) -> Workspace | None:
         """Get a workspace by ID."""
         ...
 
-    async def get_by_slug(self, slug: str) -> Optional[Workspace]:
+    async def get_by_slug(self, slug: str) -> Workspace | None:
         """Get a workspace by slug."""
         ...
 
-    async def get_all_for_user(self, user_id: UUID) -> List[Workspace]:
+    async def get_all_for_user(self, user_id: UUID) -> list[Workspace]:
         """Get all workspaces a user is a member of."""
         ...
 
@@ -35,11 +35,11 @@ class IWorkspaceRepository(Protocol):
 
     async def get_member(
         self, workspace_id: UUID, user_id: UUID
-    ) -> Optional[WorkspaceMember]:
+    ) -> WorkspaceMember | None:
         """Get a workspace member by workspace and user IDs."""
         ...
 
-    async def get_members(self, workspace_id: UUID) -> List[WorkspaceMember]:
+    async def get_members(self, workspace_id: UUID) -> list[WorkspaceMember]:
         """Get all members of a workspace."""
         ...
 

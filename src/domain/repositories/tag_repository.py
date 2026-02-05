@@ -1,6 +1,6 @@
 """Tag repository protocol."""
 
-from typing import Dict, List, Optional, Protocol
+from typing import Protocol
 from uuid import UUID
 
 from domain.entities.tag import Tag
@@ -9,33 +9,33 @@ from domain.entities.tag import Tag
 class ITagRepository(Protocol):
     """Repository interface for Tag entities."""
 
-    async def get(self, id: UUID) -> Optional[Tag]:
+    async def get(self, id: UUID) -> Tag | None:
         """Get a tag by ID."""
         ...
 
-    async def get_all_for_user(self, user_id: UUID) -> List[Tag]:
+    async def get_all_for_user(self, user_id: UUID) -> list[Tag]:
         """Get all tags for a user."""
         ...
 
-    async def get_all_for_workspace(self, workspace_id: UUID) -> List[Tag]:
+    async def get_all_for_workspace(self, workspace_id: UUID) -> list[Tag]:
         """Get all tags for a workspace."""
         ...
 
     async def get_by_name_in_workspace(
         self, workspace_id: UUID, name: str
-    ) -> Optional[Tag]:
+    ) -> Tag | None:
         """Get a tag by name within a workspace."""
         ...
 
-    async def get_for_todo(self, todo_id: UUID) -> List[Tag]:
+    async def get_for_todo(self, todo_id: UUID) -> list[Tag]:
         """Get all tags attached to a todo."""
         ...
 
-    async def get_for_todos_batch(self, todo_ids: List[UUID]) -> Dict[UUID, List[Tag]]:
+    async def get_for_todos_batch(self, todo_ids: list[UUID]) -> dict[UUID, list[Tag]]:
         """Get tags for multiple todos in a single query (batch fetch)."""
         ...
 
-    async def get_by_name(self, user_id: UUID, name: str) -> Optional[Tag]:
+    async def get_by_name(self, user_id: UUID, name: str) -> Tag | None:
         """Get a tag by name for a user."""
         ...
 
@@ -63,6 +63,6 @@ class ITagRepository(Protocol):
         """Get the number of todos using this tag."""
         ...
 
-    async def get_usage_counts_batch(self, tag_ids: List[UUID]) -> Dict[UUID, int]:
+    async def get_usage_counts_batch(self, tag_ids: list[UUID]) -> dict[UUID, int]:
         """Get usage counts for multiple tags in a single query."""
         ...

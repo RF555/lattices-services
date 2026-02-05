@@ -1,6 +1,5 @@
 """Todo API routes."""
 
-from typing import List, Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query, Request, status
@@ -39,8 +38,8 @@ async def list_todos(
     todo_service: TodoService = Depends(get_todo_service),
     tag_service: TagService = Depends(get_tag_service),
     include_completed: bool = Query(True, description="Include completed todos"),
-    tag_id: Optional[UUID] = Query(None, description="Filter by tag ID"),
-    workspace_id: Optional[UUID] = Query(None, description="Filter by workspace ID"),
+    tag_id: UUID | None = Query(None, description="Filter by tag ID"),
+    workspace_id: UUID | None = Query(None, description="Filter by workspace ID"),
 ) -> TodoListResponse:
     """
     Get all tasks for the authenticated user as a flat list.
@@ -211,7 +210,7 @@ async def delete_todo(
 
 
 def _build_todo_response(
-    todo: Todo, tags: List[Tag], child_count: int = 0, completed_child_count: int = 0
+    todo: Todo, tags: list[Tag], child_count: int = 0, completed_child_count: int = 0
 ) -> TodoResponse:
     """Convert domain entity to response schema with tags and child counts."""
     return TodoResponse(

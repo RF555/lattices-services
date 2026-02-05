@@ -1,6 +1,6 @@
 """Activity log repository protocol."""
 
-from typing import List, Protocol
+from typing import Protocol
 from uuid import UUID
 
 from domain.entities.activity import ActivityLog
@@ -18,7 +18,7 @@ class IActivityRepository(Protocol):
         workspace_id: UUID,
         limit: int = 50,
         offset: int = 0,
-    ) -> List[ActivityLog]:
+    ) -> list[ActivityLog]:
         """Get activity log entries for a workspace, ordered by newest first."""
         ...
 
@@ -27,7 +27,7 @@ class IActivityRepository(Protocol):
         entity_type: str,
         entity_id: UUID,
         limit: int = 50,
-    ) -> List[ActivityLog]:
+    ) -> list[ActivityLog]:
         """Get activity log entries for a specific entity."""
         ...
 
@@ -35,6 +35,6 @@ class IActivityRepository(Protocol):
         self,
         user_id: UUID,
         limit: int = 50,
-    ) -> List[ActivityLog]:
+    ) -> list[ActivityLog]:
         """Get activity log entries by a specific user."""
         ...

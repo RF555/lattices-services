@@ -1,6 +1,6 @@
 """Invitation repository protocol."""
 
-from typing import List, Optional, Protocol
+from typing import Protocol
 from uuid import UUID
 
 from domain.entities.invitation import Invitation, InvitationStatus
@@ -13,25 +13,25 @@ class IInvitationRepository(Protocol):
         """Create a new invitation."""
         ...
 
-    async def get_by_token_hash(self, token_hash: str) -> Optional[Invitation]:
+    async def get_by_token_hash(self, token_hash: str) -> Invitation | None:
         """Get an invitation by its hashed token."""
         ...
 
-    async def get_for_workspace(self, workspace_id: UUID) -> List[Invitation]:
+    async def get_for_workspace(self, workspace_id: UUID) -> list[Invitation]:
         """Get all invitations for a workspace."""
         ...
 
-    async def get_for_email(self, email: str) -> List[Invitation]:
+    async def get_for_email(self, email: str) -> list[Invitation]:
         """Get all invitations for an email address."""
         ...
 
-    async def get_pending_for_email(self, email: str) -> List[Invitation]:
+    async def get_pending_for_email(self, email: str) -> list[Invitation]:
         """Get all pending (non-expired) invitations for an email address."""
         ...
 
     async def get_pending_for_workspace_email(
         self, workspace_id: UUID, email: str
-    ) -> Optional[Invitation]:
+    ) -> Invitation | None:
         """Get a pending invitation for a specific workspace and email."""
         ...
 

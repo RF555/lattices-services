@@ -1,6 +1,5 @@
 """SQLAlchemy implementation of Group repository."""
 
-from typing import List, Optional
 from uuid import UUID
 
 from sqlalchemy import func, select
@@ -16,14 +15,14 @@ class SQLAlchemyGroupRepository:
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
 
-    async def get(self, id: UUID) -> Optional[Group]:
+    async def get(self, id: UUID) -> Group | None:
         """Get a group by ID."""
         stmt = select(GroupModel).where(GroupModel.id == id)
         result = await self._session.execute(stmt)
         model = result.scalar_one_or_none()
         return self._to_entity(model) if model else None
 
-    async def get_for_workspace(self, workspace_id: UUID) -> List[Group]:
+    async def get_for_workspace(self, workspace_id: UUID) -> list[Group]:
         """Get all groups in a workspace."""
         stmt = (
             select(GroupModel)
@@ -71,7 +70,7 @@ class SQLAlchemyGroupRepository:
 
     async def get_member(
         self, group_id: UUID, user_id: UUID
-    ) -> Optional[GroupMember]:
+    ) -> GroupMember | None:
         """Get a specific group member."""
         stmt = select(GroupMemberModel).where(
             GroupMemberModel.group_id == group_id,
@@ -81,7 +80,7 @@ class SQLAlchemyGroupRepository:
         model = result.scalar_one_or_none()
         return self._member_to_entity(model) if model else None
 
-    async def get_members(self, group_id: UUID) -> List[GroupMember]:
+    async def get_members(self, group_id: UUID) -> list[GroupMember]:
         """Get all members of a group."""
         stmt = (
             select(GroupMemberModel)

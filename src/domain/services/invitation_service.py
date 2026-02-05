@@ -2,8 +2,9 @@
 
 import hashlib
 import secrets
+from collections.abc import Callable
 from datetime import datetime, timedelta
-from typing import Callable, List, Optional, Tuple
+from typing import Optional
 from uuid import UUID
 
 from core.exceptions import (
@@ -45,7 +46,7 @@ class InvitationService:
         user_id: UUID,
         email: str,
         role: str = "member",
-    ) -> Tuple[Invitation, str]:
+    ) -> tuple[Invitation, str]:
         """Create a workspace invitation.
 
         Args:
@@ -80,11 +81,6 @@ class InvitationService:
             if existing:
                 raise DuplicateInvitationError(email)
 
-            # Check if user is already a member (look up all members)
-            members = await uow.workspaces.get_members(workspace_id)
-            # We don't have a direct email->profile lookup in the workspace repo,
-            # so we skip this check here. The accept flow handles duplicates.
-
             # Generate secure token
             raw_token = secrets.token_urlsafe(32)
             token_hash = self._hash_token(raw_token)
@@ -108,7 +104,7 @@ class InvitationService:
         token: str,
         user_id: UUID,
         user_email: str,
-        actor_name: Optional[str] = None,
+        actor_name: str | None = None,
     ) -> WorkspaceMember:
         """Accept a workspace invitation using the raw token.
 
@@ -257,7 +253,7 @@ class InvitationService:
         self,
         workspace_id: UUID,
         user_id: UUID,
-    ) -> List[Invitation]:
+    ) -> list[Invitation]:
         """Get all invitations for a workspace. Requires membership.
 
         Args:
@@ -274,9 +270,9 @@ class InvitationService:
 
             await self._require_role(uow, workspace_id, user_id, WorkspaceRole.VIEWER)
 
-            return await uow.invitations.get_for_workspace(workspace_id)
+            return await uow.invitations.get_for_workspace(workspace_id)  # type: ignore[no-any-return]
 
-    async def get_user_pending_invitations(self, email: str) -> List[Invitation]:
+    async def get_user_pending_invitations(self, email: str) -> list[Invitation]:
         """Get all pending invitations for an email address.
 
         Used to show pending invitations on login/dashboard.
@@ -288,7 +284,7 @@ class InvitationService:
             List of pending (non-expired) invitations.
         """
         async with self._uow_factory() as uow:
-            return await uow.invitations.get_pending_for_email(
+            return await uow.invitations.get_pending_for_email(  # type: ignore[no-any-return]
                 email.lower().strip()
             )
 

@@ -1,7 +1,8 @@
 """Todo service layer with business logic."""
 
+from collections.abc import Callable
 from datetime import datetime
-from typing import Callable, Dict, List, Optional, Tuple, cast
+from typing import Optional, cast
 from uuid import UUID
 
 from core.exceptions import (
@@ -34,8 +35,8 @@ class TodoService:
         self._notification = notification_service
 
     async def get_child_counts_batch(
-        self, todo_ids: List[UUID]
-    ) -> Dict[UUID, Tuple[int, int]]:
+        self, todo_ids: list[UUID]
+    ) -> dict[UUID, tuple[int, int]]:
         """Get child counts for multiple todos.
 
         Returns a mapping of parent_id -> (child_count, completed_child_count).
@@ -46,8 +47,8 @@ class TodoService:
             return await uow.todos.get_child_counts_batch(todo_ids)  # type: ignore[no-any-return]
 
     async def get_all_for_user(
-        self, user_id: UUID, workspace_id: Optional[UUID] = None
-    ) -> List[Todo]:
+        self, user_id: UUID, workspace_id: UUID | None = None
+    ) -> list[Todo]:
         """Get all todos for a user, optionally scoped to a workspace.
 
         If workspace_id is provided, verifies membership and returns workspace todos.
@@ -58,11 +59,11 @@ class TodoService:
                 await self._require_workspace_role(
                     uow, workspace_id, user_id, WorkspaceRole.VIEWER
                 )
-                return await uow.todos.get_all_for_workspace(workspace_id)
+                return await uow.todos.get_all_for_workspace(workspace_id)  # type: ignore[no-any-return]
             return await uow.todos.get_all_for_user(user_id)  # type: ignore[no-any-return]
 
     async def get_by_id(
-        self, todo_id: UUID, user_id: UUID, workspace_id: Optional[UUID] = None
+        self, todo_id: UUID, user_id: UUID, workspace_id: UUID | None = None
     ) -> Todo:
         """Get a specific todo, ensuring workspace membership or user ownership."""
         async with self._uow_factory() as uow:
@@ -91,10 +92,10 @@ class TodoService:
         self,
         user_id: UUID,
         title: str,
-        description: Optional[str] = None,
-        parent_id: Optional[UUID] = None,
-        workspace_id: Optional[UUID] = None,
-        actor_name: Optional[str] = None,
+        description: str | None = None,
+        parent_id: UUID | None = None,
+        workspace_id: UUID | None = None,
+        actor_name: str | None = None,
     ) -> Todo:
         """Create a new todo. Requires Member+ role if workspace_id is provided."""
         async with self._uow_factory() as uow:
@@ -170,12 +171,12 @@ class TodoService:
         self,
         todo_id: UUID,
         user_id: UUID,
-        title: Optional[str] = None,
-        description: Optional[str] = None,
-        is_completed: Optional[bool] = None,
+        title: str | None = None,
+        description: str | None = None,
+        is_completed: bool | None = None,
         parent_id: object = ...,  # Sentinel to detect explicit None
-        position: Optional[int] = None,
-        actor_name: Optional[str] = None,
+        position: int | None = None,
+        actor_name: str | None = None,
     ) -> Todo:
         """Update an existing todo."""
         async with self._uow_factory() as uow:
@@ -223,7 +224,7 @@ class TodoService:
                             400,
                         )
 
-                todo.parent_id = cast(Optional[UUID], parent_id)
+                todo.parent_id = cast(UUID | None, parent_id)
 
             # Update fields
             if title is not None:
@@ -307,7 +308,7 @@ class TodoService:
             return updated
 
     async def delete(
-        self, todo_id: UUID, user_id: UUID, actor_name: Optional[str] = None
+        self, todo_id: UUID, user_id: UUID, actor_name: str | None = None
     ) -> bool:
         """Delete a todo and all its descendants (cascade).
 
@@ -366,7 +367,7 @@ class TodoService:
         self, uow: IUnitOfWork, todo_id: UUID, new_parent_id: UUID
     ) -> bool:
         """Check if moving todo to new_parent would create a cycle."""
-        current_id: Optional[UUID] = new_parent_id
+        current_id: UUID | None = new_parent_id
 
         while current_id:
             if current_id == todo_id:

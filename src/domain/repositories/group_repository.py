@@ -1,6 +1,6 @@
 """Group repository protocol."""
 
-from typing import List, Optional, Protocol
+from typing import Protocol
 from uuid import UUID
 
 from domain.entities.group import Group, GroupMember, GroupRole
@@ -9,11 +9,11 @@ from domain.entities.group import Group, GroupMember, GroupRole
 class IGroupRepository(Protocol):
     """Repository interface for Group entities."""
 
-    async def get(self, id: UUID) -> Optional[Group]:
+    async def get(self, id: UUID) -> Group | None:
         """Get a group by ID."""
         ...
 
-    async def get_for_workspace(self, workspace_id: UUID) -> List[Group]:
+    async def get_for_workspace(self, workspace_id: UUID) -> list[Group]:
         """Get all groups in a workspace."""
         ...
 
@@ -31,11 +31,11 @@ class IGroupRepository(Protocol):
 
     async def get_member(
         self, group_id: UUID, user_id: UUID
-    ) -> Optional[GroupMember]:
+    ) -> GroupMember | None:
         """Get a specific group member."""
         ...
 
-    async def get_members(self, group_id: UUID) -> List[GroupMember]:
+    async def get_members(self, group_id: UUID) -> list[GroupMember]:
         """Get all members of a group."""
         ...
 

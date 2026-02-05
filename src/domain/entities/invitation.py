@@ -3,7 +3,6 @@
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from enum import Enum
-from typing import Optional
 from uuid import UUID, uuid4
 
 
@@ -35,7 +34,7 @@ class Invitation:
     expires_at: datetime = field(
         default_factory=lambda: datetime.utcnow() + timedelta(days=INVITATION_EXPIRY_DAYS)
     )
-    accepted_at: Optional[datetime] = None
+    accepted_at: datetime | None = None
 
     @property
     def is_expired(self) -> bool:

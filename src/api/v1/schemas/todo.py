@@ -1,7 +1,7 @@
 """Pydantic schemas for Todo API."""
 
 from datetime import datetime
-from typing import Any, List, Optional
+from typing import Any
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -11,24 +11,24 @@ class TodoBase(BaseModel):
     """Base schema for Todo."""
 
     title: str = Field(..., min_length=1, max_length=255)
-    description: Optional[str] = Field(None, max_length=1000)
-    parent_id: Optional[UUID] = None
+    description: str | None = Field(None, max_length=1000)
+    parent_id: UUID | None = None
 
 
 class TodoCreate(TodoBase):
     """Schema for creating a Todo."""
 
-    workspace_id: Optional[UUID] = None
+    workspace_id: UUID | None = None
 
 
 class TodoUpdate(BaseModel):
     """Schema for updating a Todo (all fields optional)."""
 
-    title: Optional[str] = Field(None, min_length=1, max_length=255)
-    description: Optional[str] = Field(None, max_length=1000)
-    is_completed: Optional[bool] = None
-    parent_id: Optional[UUID] = None
-    position: Optional[int] = Field(None, ge=0)
+    title: str | None = Field(None, min_length=1, max_length=255)
+    description: str | None = Field(None, max_length=1000)
+    is_completed: bool | None = None
+    parent_id: UUID | None = None
+    position: int | None = Field(None, ge=0)
 
 
 class TagSummary(BaseModel):
@@ -71,16 +71,16 @@ class TodoResponse(BaseModel):
     )
 
     id: UUID
-    parent_id: Optional[UUID]
-    workspace_id: Optional[UUID] = None
+    parent_id: UUID | None
+    workspace_id: UUID | None = None
     title: str
-    description: Optional[str]
+    description: str | None
     is_completed: bool
     position: int
     created_at: datetime
     updated_at: datetime
-    completed_at: Optional[datetime]
-    tags: List[TagSummary] = []
+    completed_at: datetime | None
+    tags: list[TagSummary] = []
     child_count: int = 0
     completed_child_count: int = 0
 
@@ -88,7 +88,7 @@ class TodoResponse(BaseModel):
 class TodoListResponse(BaseModel):
     """Schema for list of Todos response."""
 
-    data: List[TodoResponse]
+    data: list[TodoResponse]
     meta: dict[str, Any] = Field(default_factory=dict)
 
 

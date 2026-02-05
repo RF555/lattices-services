@@ -1,7 +1,7 @@
 """Pydantic schemas for Group API."""
 
 from datetime import datetime
-from typing import Any, List, Optional
+from typing import Any
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -11,14 +11,14 @@ class GroupCreate(BaseModel):
     """Schema for creating a group."""
 
     name: str = Field(..., min_length=1, max_length=100)
-    description: Optional[str] = Field(None, max_length=500)
+    description: str | None = Field(None, max_length=500)
 
 
 class GroupUpdate(BaseModel):
     """Schema for updating a group."""
 
-    name: Optional[str] = Field(None, min_length=1, max_length=100)
-    description: Optional[str] = Field(None, max_length=500)
+    name: str | None = Field(None, min_length=1, max_length=100)
+    description: str | None = Field(None, max_length=500)
 
 
 class GroupResponse(BaseModel):
@@ -29,7 +29,7 @@ class GroupResponse(BaseModel):
     id: UUID
     workspace_id: UUID
     name: str
-    description: Optional[str]
+    description: str | None
     created_by: UUID
     member_count: int = 0
     created_at: datetime
@@ -38,7 +38,7 @@ class GroupResponse(BaseModel):
 class GroupListResponse(BaseModel):
     """Schema for list of Groups response."""
 
-    data: List[GroupResponse]
+    data: list[GroupResponse]
     meta: dict[str, Any] = Field(default_factory=dict)
 
 
@@ -61,7 +61,7 @@ class GroupMemberResponse(BaseModel):
 class GroupMemberListResponse(BaseModel):
     """Schema for list of Group Members response."""
 
-    data: List[GroupMemberResponse]
+    data: list[GroupMemberResponse]
     meta: dict[str, Any] = Field(default_factory=dict)
 
 

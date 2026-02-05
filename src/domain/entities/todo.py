@@ -2,7 +2,6 @@
 
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Optional
 from uuid import UUID, uuid4
 
 
@@ -13,14 +12,14 @@ class Todo:
     user_id: UUID
     title: str
     id: UUID = field(default_factory=uuid4)
-    parent_id: Optional[UUID] = None
-    workspace_id: Optional[UUID] = None
-    description: Optional[str] = None
+    parent_id: UUID | None = None
+    workspace_id: UUID | None = None
+    description: str | None = None
     is_completed: bool = False
     position: int = 0
     created_at: datetime = field(default_factory=datetime.utcnow)
     updated_at: datetime = field(default_factory=datetime.utcnow)
-    completed_at: Optional[datetime] = None
+    completed_at: datetime | None = None
 
     def complete(self) -> None:
         """Mark the todo as completed."""

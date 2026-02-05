@@ -1,7 +1,7 @@
 """Dependency injection factories for API v1."""
 
+from collections.abc import Callable
 from functools import lru_cache
-from typing import Callable
 
 from domain.services.activity_service import ActivityService
 from domain.services.group_service import GroupService

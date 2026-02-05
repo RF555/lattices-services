@@ -1,7 +1,7 @@
 """Pydantic schemas for Invitation API."""
 
 from datetime import datetime
-from typing import Any, List, Optional
+from typing import Any
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
@@ -58,13 +58,13 @@ class InvitationResponse(BaseModel):
     invited_by: UUID
     created_at: datetime
     expires_at: datetime
-    accepted_at: Optional[datetime] = None
+    accepted_at: datetime | None = None
 
 
 class InvitationListResponse(BaseModel):
     """Schema for list of Invitations response."""
 
-    data: List[InvitationResponse]
+    data: list[InvitationResponse]
     meta: dict[str, Any] = Field(default_factory=dict)
 
 

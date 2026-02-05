@@ -16,7 +16,7 @@ Supabase JWT payload structure:
 
 import logging
 from datetime import datetime, timedelta
-from typing import Any, Optional
+from typing import Any
 from uuid import UUID
 
 import httpx
@@ -77,7 +77,7 @@ class JWTAuthProvider:
         self._algorithm = algorithm
         self._expire_minutes = expire_minutes
 
-    async def validate_token(self, token: str) -> Optional[TokenUser]:
+    async def validate_token(self, token: str) -> TokenUser | None:
         """
         Validate a JWT token and extract user info.
 
@@ -137,7 +137,7 @@ class JWTAuthProvider:
 
     async def _validate_es256(
         self, token: str, header: dict[str, Any]
-    ) -> Optional[dict[str, Any]]:
+    ) -> dict[str, Any] | None:
         """Validate an ES256-signed JWT using JWKS public keys."""
         kid = header.get("kid")
         if not kid:

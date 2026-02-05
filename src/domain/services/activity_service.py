@@ -1,11 +1,11 @@
 """Activity service layer for logging and querying workspace activity."""
 
-from typing import Any, Callable, Dict, List, Optional
+from collections.abc import Callable
+from typing import Any
 from uuid import UUID
 
 from core.exceptions import NotAMemberError, WorkspaceNotFoundError
 from domain.entities.activity import ActivityLog
-from domain.entities.workspace import WorkspaceRole, has_permission
 from domain.repositories.unit_of_work import IUnitOfWork
 
 
@@ -23,8 +23,8 @@ class ActivityService:
         action: str,
         entity_type: str,
         entity_id: UUID,
-        changes: Optional[Dict[str, Any]] = None,
-        metadata: Optional[Dict[str, Any]] = None,
+        changes: dict[str, Any] | None = None,
+        metadata: dict[str, Any] | None = None,
     ) -> ActivityLog:
         """Log an activity within an existing UoW transaction.
 
@@ -61,7 +61,7 @@ class ActivityService:
         user_id: UUID,
         limit: int = 50,
         offset: int = 0,
-    ) -> List[ActivityLog]:
+    ) -> list[ActivityLog]:
         """Get activity feed for a workspace. Requires membership.
 
         Args:
@@ -82,7 +82,7 @@ class ActivityService:
             if not member:
                 raise NotAMemberError(str(workspace_id))
 
-            return await uow.activities.get_for_workspace(
+            return await uow.activities.get_for_workspace(  # type: ignore[no-any-return]
                 workspace_id, limit=limit, offset=offset
             )
 
@@ -93,7 +93,7 @@ class ActivityService:
         entity_type: str,
         entity_id: UUID,
         limit: int = 50,
-    ) -> List[ActivityLog]:
+    ) -> list[ActivityLog]:
         """Get activity history for a specific entity. Requires membership.
 
         Args:
@@ -115,14 +115,14 @@ class ActivityService:
             if not member:
                 raise NotAMemberError(str(workspace_id))
 
-            return await uow.activities.get_for_entity(
+            return await uow.activities.get_for_entity(  # type: ignore[no-any-return]
                 entity_type, entity_id, limit=limit
             )
 
     @staticmethod
     def compute_diff(
-        old_dict: Dict[str, Any], new_dict: Dict[str, Any]
-    ) -> Dict[str, Dict[str, Any]]:
+        old_dict: dict[str, Any], new_dict: dict[str, Any]
+    ) -> dict[str, dict[str, Any]]:
         """Compute field-level diff between two dictionaries.
 
         Args:
@@ -132,7 +132,7 @@ class ActivityService:
         Returns:
             Dict of changed fields: {field_name: {"old": old_val, "new": new_val}}
         """
-        diff: Dict[str, Dict[str, Any]] = {}
+        diff: dict[str, dict[str, Any]] = {}
         all_keys = set(old_dict.keys()) | set(new_dict.keys())
 
         for key in all_keys:

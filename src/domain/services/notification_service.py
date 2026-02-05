@@ -190,7 +190,7 @@ class NotificationService:
     async def get_unread_count(self, user_id: UUID, workspace_id: UUID | None = None) -> int:
         """Get the count of unread notifications."""
         async with self._uow_factory() as uow:
-            return await uow.notifications.get_unread_count(user_id, workspace_id)
+            return await uow.notifications.get_unread_count(user_id, workspace_id)  # type: ignore[no-any-return]
 
     async def mark_read(self, recipient_id: UUID, user_id: UUID) -> None:
         """Mark a notification as read for a user."""
@@ -213,7 +213,7 @@ class NotificationService:
         async with self._uow_factory() as uow:
             count = await uow.notifications.mark_all_read(user_id, workspace_id)
             await uow.commit()
-            return count
+            return count  # type: ignore[no-any-return]
 
     async def delete_notification(self, recipient_id: UUID, user_id: UUID) -> None:
         """Soft-delete a notification for a user."""
@@ -228,7 +228,7 @@ class NotificationService:
     async def get_preferences(self, user_id: UUID) -> list[NotificationPreference]:
         """Get all notification preferences for a user."""
         async with self._uow_factory() as uow:
-            return await uow.notifications.get_preferences(user_id)
+            return await uow.notifications.get_preferences(user_id)  # type: ignore[no-any-return]
 
     async def update_preference(
         self,
@@ -254,7 +254,7 @@ class NotificationService:
     async def get_notification_types(self) -> list[NotificationType]:
         """Get all available notification types (for preferences UI)."""
         async with self._uow_factory() as uow:
-            return await uow.notifications.get_all_types()
+            return await uow.notifications.get_all_types()  # type: ignore[no-any-return]
 
     # --- Cleanup ---
 
@@ -263,4 +263,4 @@ class NotificationService:
         async with self._uow_factory() as uow:
             count = await uow.notifications.delete_expired()
             await uow.commit()
-            return count
+            return count  # type: ignore[no-any-return]

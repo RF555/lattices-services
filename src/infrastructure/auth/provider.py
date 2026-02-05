@@ -1,7 +1,7 @@
 """Authentication provider protocol."""
 
 from dataclasses import dataclass
-from typing import Optional, Protocol
+from typing import Protocol
 from uuid import UUID
 
 
@@ -11,14 +11,14 @@ class TokenUser:
 
     id: UUID
     email: str
-    display_name: Optional[str] = None
-    role: Optional[str] = None
+    display_name: str | None = None
+    role: str | None = None
 
 
 class IAuthProvider(Protocol):
     """Protocol for authentication providers."""
 
-    async def validate_token(self, token: str) -> Optional[TokenUser]:
+    async def validate_token(self, token: str) -> TokenUser | None:
         """
         Validate an authentication token.
 

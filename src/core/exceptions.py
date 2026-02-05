@@ -1,7 +1,7 @@
 """Custom exceptions and error codes."""
 
 from enum import Enum
-from typing import Any, Optional
+from typing import Any
 
 
 class ErrorCode(str, Enum):
@@ -68,7 +68,7 @@ class AppException(Exception):
         error_code: ErrorCode,
         message: str,
         status_code: int = 400,
-        details: Optional[Any] = None,
+        details: Any | None = None,
     ) -> None:
         self.error_code = error_code
         self.message = message

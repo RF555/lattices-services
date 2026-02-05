@@ -1,8 +1,9 @@
 """Workspace service layer with business logic."""
 
 import re
+from collections.abc import Callable
 from datetime import datetime
-from typing import Callable, List, Optional
+from typing import Optional
 from uuid import UUID
 
 from core.exceptions import (
@@ -39,10 +40,10 @@ class WorkspaceService:
         self._activity = activity_service
         self._notification = notification_service
 
-    async def get_all_for_user(self, user_id: UUID) -> List[Workspace]:
+    async def get_all_for_user(self, user_id: UUID) -> list[Workspace]:
         """Get all workspaces a user is a member of."""
         async with self._uow_factory() as uow:
-            return await uow.workspaces.get_all_for_user(user_id)
+            return await uow.workspaces.get_all_for_user(user_id)  # type: ignore[no-any-return]
 
     async def get_by_id(self, workspace_id: UUID, user_id: UUID) -> Workspace:
         """Get a workspace by ID, verifying user membership."""
@@ -61,7 +62,7 @@ class WorkspaceService:
         self,
         user_id: UUID,
         name: str,
-        description: Optional[str] = None,
+        description: str | None = None,
     ) -> Workspace:
         """Create a new workspace and add the creator as Owner."""
         async with self._uow_factory() as uow:
@@ -99,8 +100,8 @@ class WorkspaceService:
         self,
         workspace_id: UUID,
         user_id: UUID,
-        name: Optional[str] = None,
-        description: Optional[str] = None,
+        name: str | None = None,
+        description: str | None = None,
     ) -> Workspace:
         """Update a workspace. Requires Admin+ role."""
         async with self._uow_factory() as uow:
@@ -148,11 +149,11 @@ class WorkspaceService:
 
             deleted = await uow.workspaces.delete(workspace_id)
             await uow.commit()
-            return deleted
+            return deleted  # type: ignore[no-any-return]
 
     async def get_members(
         self, workspace_id: UUID, user_id: UUID
-    ) -> List[WorkspaceMember]:
+    ) -> list[WorkspaceMember]:
         """Get all members of a workspace. Requires membership."""
         async with self._uow_factory() as uow:
             workspace = await uow.workspaces.get(workspace_id)
@@ -161,7 +162,7 @@ class WorkspaceService:
 
             await self._require_role(uow, workspace_id, user_id, WorkspaceRole.VIEWER)
 
-            return await uow.workspaces.get_members(workspace_id)
+            return await uow.workspaces.get_members(workspace_id)  # type: ignore[no-any-return]
 
     async def add_member(
         self,
@@ -169,7 +170,7 @@ class WorkspaceService:
         user_id: UUID,
         target_user_id: UUID,
         role: WorkspaceRole = WorkspaceRole.MEMBER,
-        actor_name: Optional[str] = None,
+        actor_name: str | None = None,
     ) -> WorkspaceMember:
         """Add a member to a workspace. Requires Admin+ role.
 
@@ -234,7 +235,7 @@ class WorkspaceService:
         user_id: UUID,
         target_user_id: UUID,
         role: WorkspaceRole,
-        actor_name: Optional[str] = None,
+        actor_name: str | None = None,
     ) -> WorkspaceMember:
         """Update a member's role. Requires Admin+ role.
 
@@ -367,7 +368,7 @@ class WorkspaceService:
                 )
 
             await uow.commit()
-            return removed
+            return removed  # type: ignore[no-any-return]
 
     async def transfer_ownership(
         self,
@@ -425,11 +426,11 @@ class WorkspaceService:
             member = await uow.workspaces.get_member(workspace_id, user_id)
             if not member:
                 return False
-            return has_permission(member.role, required_role)
+            return has_permission(member.role, required_role)  # type: ignore[no-any-return]
 
     async def get_user_role(
         self, workspace_id: UUID, user_id: UUID
-    ) -> Optional[WorkspaceRole]:
+    ) -> WorkspaceRole | None:
         """Get a user's role in a workspace, or None if not a member."""
         async with self._uow_factory() as uow:
             member = await uow.workspaces.get_member(workspace_id, user_id)

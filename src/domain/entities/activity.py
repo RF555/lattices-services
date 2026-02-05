@@ -2,9 +2,8 @@
 
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, Dict, Optional
+from typing import Any
 from uuid import UUID, uuid4
-
 
 # --- Activity Action Constants ---
 # Format: {entity_type}.{action}
@@ -54,6 +53,6 @@ class ActivityLog:
     entity_type: str
     entity_id: UUID
     id: UUID = field(default_factory=uuid4)
-    changes: Optional[Dict[str, Any]] = None
-    metadata: Optional[Dict[str, Any]] = None
+    changes: dict[str, Any] | None = None
+    metadata: dict[str, Any] | None = None
     created_at: datetime = field(default_factory=datetime.utcnow)

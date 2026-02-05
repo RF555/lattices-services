@@ -1,6 +1,5 @@
 """SQLAlchemy implementation of Workspace repository."""
 
-from typing import List, Optional
 from uuid import UUID
 
 from sqlalchemy import func, select
@@ -26,21 +25,21 @@ class SQLAlchemyWorkspaceRepository:
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
 
-    async def get(self, id: UUID) -> Optional[Workspace]:
+    async def get(self, id: UUID) -> Workspace | None:
         """Get a workspace by ID."""
         stmt = select(WorkspaceModel).where(WorkspaceModel.id == id)
         result = await self._session.execute(stmt)
         model = result.scalar_one_or_none()
         return self._to_entity(model) if model else None
 
-    async def get_by_slug(self, slug: str) -> Optional[Workspace]:
+    async def get_by_slug(self, slug: str) -> Workspace | None:
         """Get a workspace by slug."""
         stmt = select(WorkspaceModel).where(WorkspaceModel.slug == slug)
         result = await self._session.execute(stmt)
         model = result.scalar_one_or_none()
         return self._to_entity(model) if model else None
 
-    async def get_all_for_user(self, user_id: UUID) -> List[Workspace]:
+    async def get_all_for_user(self, user_id: UUID) -> list[Workspace]:
         """Get all workspaces a user is a member of."""
         stmt = (
             select(WorkspaceModel)
@@ -95,7 +94,7 @@ class SQLAlchemyWorkspaceRepository:
 
     async def get_member(
         self, workspace_id: UUID, user_id: UUID
-    ) -> Optional[WorkspaceMember]:
+    ) -> WorkspaceMember | None:
         """Get a workspace member by workspace and user IDs."""
         stmt = select(WorkspaceMemberModel).where(
             WorkspaceMemberModel.workspace_id == workspace_id,
@@ -105,7 +104,7 @@ class SQLAlchemyWorkspaceRepository:
         model = result.scalar_one_or_none()
         return self._member_to_entity(model) if model else None
 
-    async def get_members(self, workspace_id: UUID) -> List[WorkspaceMember]:
+    async def get_members(self, workspace_id: UUID) -> list[WorkspaceMember]:
         """Get all members of a workspace."""
         stmt = (
             select(WorkspaceMemberModel)
@@ -135,7 +134,7 @@ class SQLAlchemyWorkspaceRepository:
         model = result.scalar_one_or_none()
 
         if not model:
-            raise ValueError(f"Member not found in workspace")
+            raise ValueError("Member not found in workspace")
 
         model.role = _ENUM_TO_ROLE[role]
         await self._session.flush()

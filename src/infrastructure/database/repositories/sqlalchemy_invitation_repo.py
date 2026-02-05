@@ -1,7 +1,6 @@
 """SQLAlchemy implementation of Invitation repository."""
 
 from datetime import datetime
-from typing import List, Optional
 from uuid import UUID
 
 from sqlalchemy import select, update
@@ -25,14 +24,14 @@ class SQLAlchemyInvitationRepository:
         await self._session.refresh(model)
         return self._to_entity(model)
 
-    async def get_by_token_hash(self, token_hash: str) -> Optional[Invitation]:
+    async def get_by_token_hash(self, token_hash: str) -> Invitation | None:
         """Get an invitation by its hashed token."""
         stmt = select(InvitationModel).where(InvitationModel.token_hash == token_hash)
         result = await self._session.execute(stmt)
         model = result.scalar_one_or_none()
         return self._to_entity(model) if model else None
 
-    async def get_for_workspace(self, workspace_id: UUID) -> List[Invitation]:
+    async def get_for_workspace(self, workspace_id: UUID) -> list[Invitation]:
         """Get all invitations for a workspace."""
         stmt = (
             select(InvitationModel)
@@ -42,7 +41,7 @@ class SQLAlchemyInvitationRepository:
         result = await self._session.execute(stmt)
         return [self._to_entity(model) for model in result.scalars()]
 
-    async def get_for_email(self, email: str) -> List[Invitation]:
+    async def get_for_email(self, email: str) -> list[Invitation]:
         """Get all invitations for an email address."""
         stmt = (
             select(InvitationModel)
@@ -52,7 +51,7 @@ class SQLAlchemyInvitationRepository:
         result = await self._session.execute(stmt)
         return [self._to_entity(model) for model in result.scalars()]
 
-    async def get_pending_for_email(self, email: str) -> List[Invitation]:
+    async def get_pending_for_email(self, email: str) -> list[Invitation]:
         """Get all pending (non-expired) invitations for an email address."""
         now = datetime.utcnow()
         stmt = (
@@ -69,7 +68,7 @@ class SQLAlchemyInvitationRepository:
 
     async def get_pending_for_workspace_email(
         self, workspace_id: UUID, email: str
-    ) -> Optional[Invitation]:
+    ) -> Invitation | None:
         """Get a pending invitation for a specific workspace and email."""
         now = datetime.utcnow()
         stmt = select(InvitationModel).where(
@@ -126,7 +125,7 @@ class SQLAlchemyInvitationRepository:
         )
         result = await self._session.execute(stmt)
         await self._session.flush()
-        return result.rowcount
+        return result.rowcount  # type: ignore[attr-defined, no-any-return]
 
     def _to_entity(self, model: InvitationModel) -> Invitation:
         """Convert ORM model to domain entity."""

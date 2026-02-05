@@ -176,7 +176,7 @@ class SQLAlchemyNotificationRepository:
             .values(is_read=True, read_at=datetime.utcnow())
         )
         result = await self._session.execute(stmt)
-        return result.rowcount > 0  # type: ignore[return-value]
+        return result.rowcount > 0  # type: ignore[attr-defined, no-any-return]
 
     async def mark_unread(self, recipient_id: UUID, user_id: UUID) -> bool:
         """Mark a notification as unread for a user."""
@@ -189,7 +189,7 @@ class SQLAlchemyNotificationRepository:
             .values(is_read=False, read_at=None)
         )
         result = await self._session.execute(stmt)
-        return result.rowcount > 0  # type: ignore[return-value]
+        return result.rowcount > 0  # type: ignore[attr-defined, no-any-return]
 
     async def mark_all_read(self, user_id: UUID, workspace_id: UUID | None = None) -> int:
         """Mark all notifications as read for a user. Returns count updated."""
@@ -221,7 +221,7 @@ class SQLAlchemyNotificationRepository:
                 .values(is_read=True, read_at=datetime.utcnow())
             )
         result = await self._session.execute(stmt)
-        return result.rowcount  # type: ignore[return-value]
+        return result.rowcount  # type: ignore[attr-defined, no-any-return]
 
     async def soft_delete(self, recipient_id: UUID, user_id: UUID) -> bool:
         """Soft-delete a notification for a user."""
@@ -234,7 +234,7 @@ class SQLAlchemyNotificationRepository:
             .values(is_deleted=True, deleted_at=datetime.utcnow())
         )
         result = await self._session.execute(stmt)
-        return result.rowcount > 0  # type: ignore[return-value]
+        return result.rowcount > 0  # type: ignore[attr-defined, no-any-return]
 
     # --- Preferences ---
 
@@ -299,7 +299,7 @@ class SQLAlchemyNotificationRepository:
         result = await self._session.execute(stmt)
         val = result.scalar_one_or_none()
         if val is not None:
-            return val
+            return val  # type: ignore[no-any-return]
 
         # Level 2: user + workspace + channel (any type)
         stmt = select(NotificationPreferenceModel.enabled).where(
@@ -311,7 +311,7 @@ class SQLAlchemyNotificationRepository:
         result = await self._session.execute(stmt)
         val = result.scalar_one_or_none()
         if val is not None:
-            return val
+            return val  # type: ignore[no-any-return]
 
         # Level 3: user + channel (global)
         stmt = select(NotificationPreferenceModel.enabled).where(
@@ -323,7 +323,7 @@ class SQLAlchemyNotificationRepository:
         result = await self._session.execute(stmt)
         val = result.scalar_one_or_none()
         if val is not None:
-            return val
+            return val  # type: ignore[no-any-return]
 
         # Level 4: System default
         return True
@@ -341,7 +341,7 @@ class SQLAlchemyNotificationRepository:
             .execution_options(synchronize_session=False)
         )
         result = await self._session.execute(stmt)
-        return result.rowcount  # type: ignore[return-value]
+        return result.rowcount  # type: ignore[attr-defined, no-any-return]
 
     # --- Conversion methods ---
 

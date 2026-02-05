@@ -1,11 +1,21 @@
 """SQLAlchemy ORM models."""
 
 from datetime import datetime
-from typing import Any, Dict, List, Optional
-from uuid import uuid4
+from typing import Any, Optional
+from uuid import UUID, uuid4
 
-from sqlalchemy import Boolean, CheckConstraint, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint
-from sqlalchemy.dialects.postgresql import JSONB, UUID as PG_UUID
+from sqlalchemy import (
+    Boolean,
+    CheckConstraint,
+    DateTime,
+    ForeignKey,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
+)
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 
@@ -20,14 +30,14 @@ class ProfileModel(Base):
 
     __tablename__ = "profiles"
 
-    id: Mapped[str] = mapped_column(
+    id: Mapped[UUID] = mapped_column(
         PG_UUID(as_uuid=True),
         primary_key=True,
         default=uuid4,
     )
     email: Mapped[str] = mapped_column(String(255), nullable=False, unique=True)
-    display_name: Mapped[Optional[str]] = mapped_column(String(100))
-    avatar_url: Mapped[Optional[str]] = mapped_column(String(500))
+    display_name: Mapped[str | None] = mapped_column(String(100))
+    avatar_url: Mapped[str | None] = mapped_column(String(500))
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime,
@@ -36,22 +46,22 @@ class ProfileModel(Base):
     )
 
     # Relationships
-    todos: Mapped[List["TodoModel"]] = relationship(
+    todos: Mapped[list["TodoModel"]] = relationship(
         "TodoModel",
         back_populates="user",
         cascade="all, delete-orphan",
     )
-    tags: Mapped[List["TagModel"]] = relationship(
+    tags: Mapped[list["TagModel"]] = relationship(
         "TagModel",
         back_populates="user",
         cascade="all, delete-orphan",
     )
-    workspace_memberships: Mapped[List["WorkspaceMemberModel"]] = relationship(
+    workspace_memberships: Mapped[list["WorkspaceMemberModel"]] = relationship(
         "WorkspaceMemberModel",
         back_populates="user",
         foreign_keys="WorkspaceMemberModel.user_id",
     )
-    created_workspaces: Mapped[List["WorkspaceModel"]] = relationship(
+    created_workspaces: Mapped[list["WorkspaceModel"]] = relationship(
         "WorkspaceModel",
         back_populates="creator",
         foreign_keys="WorkspaceModel.created_by",
@@ -63,20 +73,20 @@ class WorkspaceModel(Base):
 
     __tablename__ = "workspaces"
 
-    id: Mapped[str] = mapped_column(
+    id: Mapped[UUID] = mapped_column(
         PG_UUID(as_uuid=True),
         primary_key=True,
         default=uuid4,
     )
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     slug: Mapped[str] = mapped_column(String(100), unique=True, nullable=False)
-    description: Mapped[Optional[str]] = mapped_column(Text)
-    created_by: Mapped[str] = mapped_column(
+    description: Mapped[str | None] = mapped_column(Text)
+    created_by: Mapped[UUID] = mapped_column(
         PG_UUID(as_uuid=True),
         ForeignKey("profiles.id", ondelete="CASCADE"),
         nullable=False,
     )
-    settings: Mapped[Dict[str, Any]] = mapped_column(JSONB, default=dict)
+    settings: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime,
@@ -90,17 +100,17 @@ class WorkspaceModel(Base):
         back_populates="created_workspaces",
         foreign_keys=[created_by],
     )
-    members: Mapped[List["WorkspaceMemberModel"]] = relationship(
+    members: Mapped[list["WorkspaceMemberModel"]] = relationship(
         "WorkspaceMemberModel",
         back_populates="workspace",
         cascade="all, delete-orphan",
     )
-    todos: Mapped[List["TodoModel"]] = relationship(
+    todos: Mapped[list["TodoModel"]] = relationship(
         "TodoModel",
         back_populates="workspace",
         foreign_keys="TodoModel.workspace_id",
     )
-    tags: Mapped[List["TagModel"]] = relationship(
+    tags: Mapped[list["TagModel"]] = relationship(
         "TagModel",
         back_populates="workspace",
         foreign_keys="TagModel.workspace_id",
@@ -112,12 +122,12 @@ class WorkspaceMemberModel(Base):
 
     __tablename__ = "workspace_members"
 
-    workspace_id: Mapped[str] = mapped_column(
+    workspace_id: Mapped[UUID] = mapped_column(
         PG_UUID(as_uuid=True),
         ForeignKey("workspaces.id", ondelete="CASCADE"),
         primary_key=True,
     )
-    user_id: Mapped[str] = mapped_column(
+    user_id: Mapped[UUID] = mapped_column(
         PG_UUID(as_uuid=True),
         ForeignKey("profiles.id", ondelete="CASCADE"),
         primary_key=True,
@@ -130,7 +140,7 @@ class WorkspaceMemberModel(Base):
         default="member",
     )
     joined_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
-    invited_by: Mapped[Optional[str]] = mapped_column(
+    invited_by: Mapped[UUID | None] = mapped_column(
         PG_UUID(as_uuid=True),
         ForeignKey("profiles.id", ondelete="SET NULL"),
     )
@@ -156,29 +166,29 @@ class TodoModel(Base):
 
     __tablename__ = "todos"
 
-    id: Mapped[str] = mapped_column(
+    id: Mapped[UUID] = mapped_column(
         PG_UUID(as_uuid=True),
         primary_key=True,
         default=uuid4,
     )
-    user_id: Mapped[str] = mapped_column(
+    user_id: Mapped[UUID] = mapped_column(
         PG_UUID(as_uuid=True),
         ForeignKey("profiles.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
     )
-    parent_id: Mapped[Optional[str]] = mapped_column(
+    parent_id: Mapped[UUID | None] = mapped_column(
         PG_UUID(as_uuid=True),
         ForeignKey("todos.id", ondelete="CASCADE"),
         index=True,
     )
-    workspace_id: Mapped[Optional[str]] = mapped_column(
+    workspace_id: Mapped[UUID | None] = mapped_column(
         PG_UUID(as_uuid=True),
         ForeignKey("workspaces.id", ondelete="CASCADE"),
         index=True,
     )
     title: Mapped[str] = mapped_column(String(255), nullable=False)
-    description: Mapped[Optional[str]] = mapped_column(Text)
+    description: Mapped[str | None] = mapped_column(Text)
     is_completed: Mapped[bool] = mapped_column(Boolean, default=False)
     position: Mapped[int] = mapped_column(Integer, default=0)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
@@ -187,7 +197,7 @@ class TodoModel(Base):
         default=datetime.utcnow,
         onupdate=datetime.utcnow,
     )
-    completed_at: Mapped[Optional[datetime]] = mapped_column(DateTime)
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime)
 
     # Relationships
     user: Mapped["ProfileModel"] = relationship("ProfileModel", back_populates="todos")
@@ -201,12 +211,12 @@ class TodoModel(Base):
         remote_side=[id],
         back_populates="children",
     )
-    children: Mapped[List["TodoModel"]] = relationship(
+    children: Mapped[list["TodoModel"]] = relationship(
         "TodoModel",
         back_populates="parent",
         cascade="all, delete-orphan",
     )
-    tags: Mapped[List["TagModel"]] = relationship(
+    tags: Mapped[list["TagModel"]] = relationship(
         "TagModel",
         secondary="todo_tags",
         back_populates="todos",
@@ -218,18 +228,18 @@ class TagModel(Base):
 
     __tablename__ = "tags"
 
-    id: Mapped[str] = mapped_column(
+    id: Mapped[UUID] = mapped_column(
         PG_UUID(as_uuid=True),
         primary_key=True,
         default=uuid4,
     )
-    user_id: Mapped[str] = mapped_column(
+    user_id: Mapped[UUID] = mapped_column(
         PG_UUID(as_uuid=True),
         ForeignKey("profiles.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
     )
-    workspace_id: Mapped[Optional[str]] = mapped_column(
+    workspace_id: Mapped[UUID | None] = mapped_column(
         PG_UUID(as_uuid=True),
         ForeignKey("workspaces.id", ondelete="CASCADE"),
         index=True,
@@ -245,7 +255,7 @@ class TagModel(Base):
         back_populates="tags",
         foreign_keys=[workspace_id],
     )
-    todos: Mapped[List["TodoModel"]] = relationship(
+    todos: Mapped[list["TodoModel"]] = relationship(
         "TodoModel",
         secondary="todo_tags",
         back_populates="tags",
@@ -257,12 +267,12 @@ class TodoTagModel(Base):
 
     __tablename__ = "todo_tags"
 
-    todo_id: Mapped[str] = mapped_column(
+    todo_id: Mapped[UUID] = mapped_column(
         PG_UUID(as_uuid=True),
         ForeignKey("todos.id", ondelete="CASCADE"),
         primary_key=True,
     )
-    tag_id: Mapped[str] = mapped_column(
+    tag_id: Mapped[UUID] = mapped_column(
         PG_UUID(as_uuid=True),
         ForeignKey("tags.id", ondelete="CASCADE"),
         primary_key=True,
@@ -275,12 +285,12 @@ class InvitationModel(Base):
 
     __tablename__ = "invitations"
 
-    id: Mapped[str] = mapped_column(
+    id: Mapped[UUID] = mapped_column(
         PG_UUID(as_uuid=True),
         primary_key=True,
         default=uuid4,
     )
-    workspace_id: Mapped[str] = mapped_column(
+    workspace_id: Mapped[UUID] = mapped_column(
         PG_UUID(as_uuid=True),
         ForeignKey("workspaces.id", ondelete="CASCADE"),
         nullable=False,
@@ -296,7 +306,7 @@ class InvitationModel(Base):
         default="member",
     )
     token_hash: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
-    invited_by: Mapped[str] = mapped_column(
+    invited_by: Mapped[UUID] = mapped_column(
         PG_UUID(as_uuid=True),
         ForeignKey("profiles.id", ondelete="CASCADE"),
         nullable=False,
@@ -312,7 +322,7 @@ class InvitationModel(Base):
     )
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     expires_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
-    accepted_at: Mapped[Optional[datetime]] = mapped_column(DateTime)
+    accepted_at: Mapped[datetime | None] = mapped_column(DateTime)
 
     # Relationships
     workspace: Mapped["WorkspaceModel"] = relationship("WorkspaceModel")
@@ -324,27 +334,27 @@ class ActivityLogModel(Base):
 
     __tablename__ = "activity_log"
 
-    id: Mapped[str] = mapped_column(
+    id: Mapped[UUID] = mapped_column(
         PG_UUID(as_uuid=True),
         primary_key=True,
         default=uuid4,
     )
-    workspace_id: Mapped[str] = mapped_column(
+    workspace_id: Mapped[UUID] = mapped_column(
         PG_UUID(as_uuid=True),
         ForeignKey("workspaces.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
     )
-    actor_id: Mapped[str] = mapped_column(
+    actor_id: Mapped[UUID] = mapped_column(
         PG_UUID(as_uuid=True),
         ForeignKey("profiles.id", ondelete="CASCADE"),
         nullable=False,
     )
     action: Mapped[str] = mapped_column(String(50), nullable=False)
     entity_type: Mapped[str] = mapped_column(String(50), nullable=False)
-    entity_id: Mapped[str] = mapped_column(PG_UUID(as_uuid=True), nullable=False)
-    changes: Mapped[Optional[Dict[str, Any]]] = mapped_column(JSONB)
-    metadata_: Mapped[Optional[Dict[str, Any]]] = mapped_column(
+    entity_id: Mapped[UUID] = mapped_column(PG_UUID(as_uuid=True), nullable=False)
+    changes: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
+    metadata_: Mapped[dict[str, Any] | None] = mapped_column(
         "metadata", JSONB
     )
     created_at: Mapped[datetime] = mapped_column(
@@ -361,20 +371,20 @@ class GroupModel(Base):
 
     __tablename__ = "groups"
 
-    id: Mapped[str] = mapped_column(
+    id: Mapped[UUID] = mapped_column(
         PG_UUID(as_uuid=True),
         primary_key=True,
         default=uuid4,
     )
-    workspace_id: Mapped[str] = mapped_column(
+    workspace_id: Mapped[UUID] = mapped_column(
         PG_UUID(as_uuid=True),
         ForeignKey("workspaces.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
     )
     name: Mapped[str] = mapped_column(String(100), nullable=False)
-    description: Mapped[Optional[str]] = mapped_column(Text)
-    created_by: Mapped[str] = mapped_column(
+    description: Mapped[str | None] = mapped_column(Text)
+    created_by: Mapped[UUID] = mapped_column(
         PG_UUID(as_uuid=True),
         ForeignKey("profiles.id", ondelete="CASCADE"),
         nullable=False,
@@ -384,7 +394,7 @@ class GroupModel(Base):
     # Relationships
     workspace: Mapped["WorkspaceModel"] = relationship("WorkspaceModel")
     creator: Mapped["ProfileModel"] = relationship("ProfileModel")
-    members: Mapped[List["GroupMemberModel"]] = relationship(
+    members: Mapped[list["GroupMemberModel"]] = relationship(
         "GroupMemberModel",
         back_populates="group",
         cascade="all, delete-orphan",
@@ -396,12 +406,12 @@ class GroupMemberModel(Base):
 
     __tablename__ = "group_members"
 
-    group_id: Mapped[str] = mapped_column(
+    group_id: Mapped[UUID] = mapped_column(
         PG_UUID(as_uuid=True),
         ForeignKey("groups.id", ondelete="CASCADE"),
         primary_key=True,
     )
-    user_id: Mapped[str] = mapped_column(
+    user_id: Mapped[UUID] = mapped_column(
         PG_UUID(as_uuid=True),
         ForeignKey("profiles.id", ondelete="CASCADE"),
         primary_key=True,
@@ -431,15 +441,15 @@ class NotificationTypeModel(Base):
 
     __tablename__ = "notification_types"
 
-    id: Mapped[str] = mapped_column(
+    id: Mapped[UUID] = mapped_column(
         PG_UUID(as_uuid=True),
         primary_key=True,
         default=uuid4,
     )
     name: Mapped[str] = mapped_column(String(50), unique=True, nullable=False)
-    description: Mapped[Optional[str]] = mapped_column(Text)
+    description: Mapped[str | None] = mapped_column(Text)
     template: Mapped[str] = mapped_column(Text, nullable=False)
-    default_channels: Mapped[Dict[str, Any]] = mapped_column(
+    default_channels: Mapped[dict[str, Any]] = mapped_column(
         JSONB, default=lambda: ["in_app"]
     )
     is_mandatory: Mapped[bool] = mapped_column(Boolean, default=False)
@@ -451,36 +461,36 @@ class NotificationModel(Base):
 
     __tablename__ = "notifications"
 
-    id: Mapped[str] = mapped_column(
+    id: Mapped[UUID] = mapped_column(
         PG_UUID(as_uuid=True),
         primary_key=True,
         default=uuid4,
     )
-    type_id: Mapped[str] = mapped_column(
+    type_id: Mapped[UUID] = mapped_column(
         PG_UUID(as_uuid=True),
         ForeignKey("notification_types.id"),
         nullable=False,
     )
-    workspace_id: Mapped[str] = mapped_column(
+    workspace_id: Mapped[UUID] = mapped_column(
         PG_UUID(as_uuid=True),
         ForeignKey("workspaces.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
     )
-    actor_id: Mapped[str] = mapped_column(
+    actor_id: Mapped[UUID] = mapped_column(
         PG_UUID(as_uuid=True),
         ForeignKey("profiles.id", ondelete="CASCADE"),
         nullable=False,
     )
     entity_type: Mapped[str] = mapped_column(String(50), nullable=False)
-    entity_id: Mapped[str] = mapped_column(PG_UUID(as_uuid=True), nullable=False)
-    metadata_: Mapped[Optional[Dict[str, Any]]] = mapped_column(
+    entity_id: Mapped[UUID] = mapped_column(PG_UUID(as_uuid=True), nullable=False)
+    metadata_: Mapped[dict[str, Any] | None] = mapped_column(
         "metadata", JSONB
     )
     created_at: Mapped[datetime] = mapped_column(
         DateTime, default=datetime.utcnow, nullable=False
     )
-    expires_at: Mapped[Optional[datetime]] = mapped_column(DateTime)
+    expires_at: Mapped[datetime | None] = mapped_column(DateTime)
 
     # Relationships
     notification_type: Mapped["NotificationTypeModel"] = relationship(
@@ -498,25 +508,25 @@ class NotificationRecipientModel(Base):
         UniqueConstraint("notification_id", "recipient_id"),
     )
 
-    id: Mapped[str] = mapped_column(
+    id: Mapped[UUID] = mapped_column(
         PG_UUID(as_uuid=True),
         primary_key=True,
         default=uuid4,
     )
-    notification_id: Mapped[str] = mapped_column(
+    notification_id: Mapped[UUID] = mapped_column(
         PG_UUID(as_uuid=True),
         ForeignKey("notifications.id", ondelete="CASCADE"),
         nullable=False,
     )
-    recipient_id: Mapped[str] = mapped_column(
+    recipient_id: Mapped[UUID] = mapped_column(
         PG_UUID(as_uuid=True),
         ForeignKey("profiles.id", ondelete="CASCADE"),
         nullable=False,
     )
     is_read: Mapped[bool] = mapped_column(Boolean, default=False)
-    read_at: Mapped[Optional[datetime]] = mapped_column(DateTime)
+    read_at: Mapped[datetime | None] = mapped_column(DateTime)
     is_deleted: Mapped[bool] = mapped_column(Boolean, default=False)
-    deleted_at: Mapped[Optional[datetime]] = mapped_column(DateTime)
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime)
 
     # Relationships
     notification: Mapped["NotificationModel"] = relationship("NotificationModel")
@@ -533,22 +543,22 @@ class NotificationPreferenceModel(Base):
         ),
     )
 
-    id: Mapped[str] = mapped_column(
+    id: Mapped[UUID] = mapped_column(
         PG_UUID(as_uuid=True),
         primary_key=True,
         default=uuid4,
     )
-    user_id: Mapped[str] = mapped_column(
+    user_id: Mapped[UUID] = mapped_column(
         PG_UUID(as_uuid=True),
         ForeignKey("profiles.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
     )
-    workspace_id: Mapped[Optional[str]] = mapped_column(
+    workspace_id: Mapped[UUID | None] = mapped_column(
         PG_UUID(as_uuid=True),
         ForeignKey("workspaces.id", ondelete="CASCADE"),
     )
-    notification_type: Mapped[Optional[str]] = mapped_column(String(50))
+    notification_type: Mapped[str | None] = mapped_column(String(50))
     channel: Mapped[str] = mapped_column(
         String(20), nullable=False, default="in_app"
     )

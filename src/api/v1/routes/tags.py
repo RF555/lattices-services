@@ -1,7 +1,6 @@
 """Tag API routes."""
 
 from datetime import datetime
-from typing import Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query, Request, status
@@ -33,7 +32,7 @@ async def list_tags(
     request: Request,
     user: CurrentUser,
     service: TagService = Depends(get_tag_service),
-    workspace_id: Optional[UUID] = Query(None, description="Filter by workspace ID"),
+    workspace_id: UUID | None = Query(None, description="Filter by workspace ID"),
 ) -> TagListResponse:
     """Get all tags for the authenticated user, including usage counts."""
     tags_with_counts = await service.get_all_for_user(user.id, workspace_id=workspace_id)

@@ -1,7 +1,6 @@
 """Health check endpoints."""
 
 from datetime import datetime
-from typing import Optional
 
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
@@ -21,7 +20,7 @@ class HealthResponse(BaseModel):
     version: str
     timestamp: str
     environment: str
-    database: Optional[str] = None
+    database: str | None = None
 
 
 @router.get("/health", response_model=HealthResponse, summary="Basic health check")

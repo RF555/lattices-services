@@ -1,7 +1,7 @@
 """Pydantic schemas for Workspace API."""
 
 from datetime import datetime
-from typing import Any, List, Optional
+from typing import Any
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -11,14 +11,14 @@ class WorkspaceCreate(BaseModel):
     """Schema for creating a Workspace."""
 
     name: str = Field(..., min_length=1, max_length=255)
-    description: Optional[str] = Field(None, max_length=1000)
+    description: str | None = Field(None, max_length=1000)
 
 
 class WorkspaceUpdate(BaseModel):
     """Schema for updating a Workspace (all fields optional)."""
 
-    name: Optional[str] = Field(None, min_length=1, max_length=255)
-    description: Optional[str] = Field(None, max_length=1000)
+    name: str | None = Field(None, min_length=1, max_length=255)
+    description: str | None = Field(None, max_length=1000)
 
 
 class WorkspaceResponse(BaseModel):
@@ -43,7 +43,7 @@ class WorkspaceResponse(BaseModel):
     id: UUID
     name: str
     slug: str
-    description: Optional[str]
+    description: str | None
     created_by: UUID
     member_count: int = 0
     created_at: datetime
@@ -57,8 +57,8 @@ class WorkspaceMemberResponse(BaseModel):
 
     user_id: UUID
     email: str = ""
-    display_name: Optional[str] = None
-    avatar_url: Optional[str] = None
+    display_name: str | None = None
+    avatar_url: str | None = None
     role: str
     joined_at: datetime
 
@@ -66,7 +66,7 @@ class WorkspaceMemberResponse(BaseModel):
 class WorkspaceListResponse(BaseModel):
     """Schema for list of Workspaces response."""
 
-    data: List[WorkspaceResponse]
+    data: list[WorkspaceResponse]
     meta: dict[str, Any] = Field(default_factory=dict)
 
 
@@ -79,7 +79,7 @@ class WorkspaceDetailResponse(BaseModel):
 class WorkspaceMemberListResponse(BaseModel):
     """Schema for list of Workspace Members response."""
 
-    data: List[WorkspaceMemberResponse]
+    data: list[WorkspaceMemberResponse]
     meta: dict[str, Any] = Field(default_factory=dict)
 
 

@@ -1,7 +1,7 @@
 """Group service layer with business logic."""
 
-from typing import Callable, List, Optional
-
+from collections.abc import Callable
+from typing import Optional
 from uuid import UUID
 
 from core.exceptions import (
@@ -32,7 +32,7 @@ class GroupService:
 
     async def get_for_workspace(
         self, workspace_id: UUID, user_id: UUID
-    ) -> List[Group]:
+    ) -> list[Group]:
         """Get all groups in a workspace. Requires membership."""
         async with self._uow_factory() as uow:
             workspace = await uow.workspaces.get(workspace_id)
@@ -43,7 +43,7 @@ class GroupService:
                 uow, workspace_id, user_id, WorkspaceRole.VIEWER
             )
 
-            return await uow.groups.get_for_workspace(workspace_id)
+            return await uow.groups.get_for_workspace(workspace_id)  # type: ignore[no-any-return]
 
     async def get_by_id(
         self, workspace_id: UUID, group_id: UUID, user_id: UUID
@@ -65,7 +65,7 @@ class GroupService:
         workspace_id: UUID,
         user_id: UUID,
         name: str,
-        description: Optional[str] = None,
+        description: str | None = None,
     ) -> Group:
         """Create a group in a workspace. Requires Admin+ role."""
         async with self._uow_factory() as uow:
@@ -102,8 +102,8 @@ class GroupService:
         workspace_id: UUID,
         group_id: UUID,
         user_id: UUID,
-        name: Optional[str] = None,
-        description: Optional[str] = None,
+        name: str | None = None,
+        description: str | None = None,
     ) -> Group:
         """Update a group. Requires workspace Admin+ or group Admin."""
         async with self._uow_factory() as uow:
@@ -140,11 +140,11 @@ class GroupService:
 
             deleted = await uow.groups.delete(group_id)
             await uow.commit()
-            return deleted
+            return deleted  # type: ignore[no-any-return]
 
     async def get_members(
         self, workspace_id: UUID, group_id: UUID, user_id: UUID
-    ) -> List[GroupMember]:
+    ) -> list[GroupMember]:
         """Get all members of a group. Requires workspace membership."""
         async with self._uow_factory() as uow:
             group = await uow.groups.get(group_id)
@@ -155,7 +155,7 @@ class GroupService:
                 uow, workspace_id, user_id, WorkspaceRole.VIEWER
             )
 
-            return await uow.groups.get_members(group_id)
+            return await uow.groups.get_members(group_id)  # type: ignore[no-any-return]
 
     async def add_member(
         self,
@@ -164,7 +164,7 @@ class GroupService:
         user_id: UUID,
         target_user_id: UUID,
         role: GroupRole = GroupRole.MEMBER,
-        actor_name: Optional[str] = None,
+        actor_name: str | None = None,
     ) -> GroupMember:
         """Add a member to a group. Requires workspace Admin+ or group Admin."""
         async with self._uow_factory() as uow:
@@ -241,7 +241,7 @@ class GroupService:
 
             removed = await uow.groups.remove_member(group_id, target_user_id)
             await uow.commit()
-            return removed
+            return removed  # type: ignore[no-any-return]
 
     # --- Internal helpers ---
 

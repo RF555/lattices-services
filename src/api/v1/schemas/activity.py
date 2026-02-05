@@ -1,7 +1,7 @@
 """Pydantic schemas for Activity API."""
 
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -18,13 +18,13 @@ class ActivityLogResponse(BaseModel):
     action: str
     entity_type: str
     entity_id: UUID
-    changes: Optional[Dict[str, Any]] = None
-    metadata: Optional[Dict[str, Any]] = None
+    changes: dict[str, Any] | None = None
+    metadata: dict[str, Any] | None = None
     created_at: datetime
 
 
 class ActivityListResponse(BaseModel):
     """Schema for paginated activity log response."""
 
-    data: List[ActivityLogResponse]
+    data: list[ActivityLogResponse]
     meta: dict[str, Any] = Field(default_factory=dict)

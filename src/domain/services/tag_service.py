@@ -1,6 +1,6 @@
 """Tag service layer with business logic."""
 
-from typing import Callable, Dict, List, Optional
+from collections.abc import Callable
 from uuid import UUID
 
 from core.exceptions import (
@@ -23,8 +23,8 @@ class TagService:
         self._uow_factory = uow_factory
 
     async def get_all_for_user(
-        self, user_id: UUID, workspace_id: Optional[UUID] = None
-    ) -> List[TagWithCount]:
+        self, user_id: UUID, workspace_id: UUID | None = None
+    ) -> list[TagWithCount]:
         """Get all tags for user with usage counts, optionally scoped to workspace."""
         async with self._uow_factory() as uow:
             if workspace_id:
@@ -64,7 +64,7 @@ class TagService:
         user_id: UUID,
         name: str,
         color_hex: str = "#3B82F6",
-        workspace_id: Optional[UUID] = None,
+        workspace_id: UUID | None = None,
     ) -> Tag:
         """Create a new tag. Requires Member+ role if workspace_id is provided."""
         async with self._uow_factory() as uow:
@@ -101,8 +101,8 @@ class TagService:
         self,
         tag_id: UUID,
         user_id: UUID,
-        name: Optional[str] = None,
-        color_hex: Optional[str] = None,
+        name: str | None = None,
+        color_hex: str | None = None,
     ) -> Tag:
         """Update an existing tag."""
         async with self._uow_factory() as uow:
@@ -223,7 +223,7 @@ class TagService:
             await uow.tags.detach_from_todo(tag_id, todo_id)
             await uow.commit()
 
-    async def get_tags_for_todo(self, todo_id: UUID, user_id: UUID) -> List[Tag]:
+    async def get_tags_for_todo(self, todo_id: UUID, user_id: UUID) -> list[Tag]:
         """Get all tags attached to a todo."""
         async with self._uow_factory() as uow:
             todo = await uow.todos.get(todo_id)
@@ -241,8 +241,8 @@ class TagService:
             return await uow.tags.get_for_todo(todo_id)  # type: ignore[no-any-return]
 
     async def get_tags_for_todos_batch(
-        self, todo_ids: List[UUID]
-    ) -> Dict[UUID, List[Tag]]:
+        self, todo_ids: list[UUID]
+    ) -> dict[UUID, list[Tag]]:
         """Get tags for multiple todos in a single query (batch fetch)."""
         if not todo_ids:
             return {}

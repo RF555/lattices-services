@@ -1,21 +1,20 @@
 """Authentication dependencies for FastAPI."""
 
-from typing import Annotated, Optional
+from typing import Annotated
 from uuid import UUID
 
-from fastapi import Depends, Header, Request
+from fastapi import Depends, Header
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from core.exceptions import AuthenticationError, ErrorCode
 from infrastructure.auth.jwt_provider import JWTAuthProvider
 from infrastructure.auth.provider import TokenUser
 
-
 # Security scheme for OpenAPI docs
 security = HTTPBearer(auto_error=False)
 
 # Singleton auth provider
-_auth_provider: Optional[JWTAuthProvider] = None
+_auth_provider: JWTAuthProvider | None = None
 
 
 def get_auth_provider() -> JWTAuthProvider:
@@ -28,7 +27,7 @@ def get_auth_provider() -> JWTAuthProvider:
 
 async def get_current_user(
     credentials: Annotated[
-        Optional[HTTPAuthorizationCredentials],
+        HTTPAuthorizationCredentials | None,
         Depends(security),
     ],
     auth_provider: JWTAuthProvider = Depends(get_auth_provider),
@@ -59,11 +58,11 @@ async def get_current_user(
 
 async def get_optional_user(
     credentials: Annotated[
-        Optional[HTTPAuthorizationCredentials],
+        HTTPAuthorizationCredentials | None,
         Depends(security),
     ],
     auth_provider: JWTAuthProvider = Depends(get_auth_provider),
-) -> Optional[TokenUser]:
+) -> TokenUser | None:
     """
     Dependency to get the current user if authenticated.
 
@@ -78,12 +77,12 @@ async def get_optional_user(
 
 # Type alias for convenience in route handlers
 CurrentUser = Annotated[TokenUser, Depends(get_current_user)]
-OptionalUser = Annotated[Optional[TokenUser], Depends(get_optional_user)]
+OptionalUser = Annotated[TokenUser | None, Depends(get_optional_user)]
 
 
 async def get_workspace_id_from_header(
-    x_workspace_id: Annotated[Optional[str], Header()] = None,
-) -> Optional[UUID]:
+    x_workspace_id: Annotated[str | None, Header()] = None,
+) -> UUID | None:
     """Extract workspace ID from X-Workspace-Id header if present."""
     if x_workspace_id:
         try:
@@ -93,4 +92,4 @@ async def get_workspace_id_from_header(
     return None
 
 
-WorkspaceId = Annotated[Optional[UUID], Depends(get_workspace_id_from_header)]
+WorkspaceId = Annotated[UUID | None, Depends(get_workspace_id_from_header)]

@@ -1,7 +1,6 @@
 """SQLAlchemy implementation of Tag repository."""
 
 from collections import defaultdict
-from typing import Dict, List, Optional
 from uuid import UUID
 
 from sqlalchemy import delete, func, select
@@ -17,14 +16,14 @@ class SQLAlchemyTagRepository:
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
 
-    async def get(self, id: UUID) -> Optional[Tag]:
+    async def get(self, id: UUID) -> Tag | None:
         """Get a tag by ID."""
         stmt = select(TagModel).where(TagModel.id == id)
         result = await self._session.execute(stmt)
         model = result.scalar_one_or_none()
         return self._to_entity(model) if model else None
 
-    async def get_all_for_user(self, user_id: UUID) -> List[Tag]:
+    async def get_all_for_user(self, user_id: UUID) -> list[Tag]:
         """Get all tags for a user."""
         stmt = (
             select(TagModel)
@@ -34,7 +33,7 @@ class SQLAlchemyTagRepository:
         result = await self._session.execute(stmt)
         return [self._to_entity(model) for model in result.scalars()]
 
-    async def get_all_for_workspace(self, workspace_id: UUID) -> List[Tag]:
+    async def get_all_for_workspace(self, workspace_id: UUID) -> list[Tag]:
         """Get all tags for a workspace."""
         stmt = (
             select(TagModel)
@@ -46,7 +45,7 @@ class SQLAlchemyTagRepository:
 
     async def get_by_name_in_workspace(
         self, workspace_id: UUID, name: str
-    ) -> Optional[Tag]:
+    ) -> Tag | None:
         """Get a tag by name within a workspace."""
         stmt = select(TagModel).where(
             TagModel.workspace_id == workspace_id,
@@ -56,7 +55,7 @@ class SQLAlchemyTagRepository:
         model = result.scalar_one_or_none()
         return self._to_entity(model) if model else None
 
-    async def get_for_todo(self, todo_id: UUID) -> List[Tag]:
+    async def get_for_todo(self, todo_id: UUID) -> list[Tag]:
         """Get all tags attached to a todo."""
         stmt = (
             select(TagModel)
@@ -67,7 +66,7 @@ class SQLAlchemyTagRepository:
         result = await self._session.execute(stmt)
         return [self._to_entity(model) for model in result.scalars()]
 
-    async def get_for_todos_batch(self, todo_ids: List[UUID]) -> Dict[UUID, List[Tag]]:
+    async def get_for_todos_batch(self, todo_ids: list[UUID]) -> dict[UUID, list[Tag]]:
         """Get tags for multiple todos in a single query."""
         if not todo_ids:
             return {}
@@ -80,13 +79,13 @@ class SQLAlchemyTagRepository:
         )
         result = await self._session.execute(stmt)
 
-        tags_by_todo: Dict[UUID, List[Tag]] = defaultdict(list)
+        tags_by_todo: dict[UUID, list[Tag]] = defaultdict(list)
         for todo_id, tag_model in result:
             tags_by_todo[todo_id].append(self._to_entity(tag_model))
 
         return dict(tags_by_todo)
 
-    async def get_by_name(self, user_id: UUID, name: str) -> Optional[Tag]:
+    async def get_by_name(self, user_id: UUID, name: str) -> Tag | None:
         """Get a tag by name for a user."""
         stmt = select(TagModel).where(
             TagModel.user_id == user_id,
@@ -166,7 +165,7 @@ class SQLAlchemyTagRepository:
         result = await self._session.execute(stmt)
         return result.scalar() or 0
 
-    async def get_usage_counts_batch(self, tag_ids: List[UUID]) -> Dict[UUID, int]:
+    async def get_usage_counts_batch(self, tag_ids: list[UUID]) -> dict[UUID, int]:
         """Get usage counts for multiple tags in a single query."""
         if not tag_ids:
             return {}

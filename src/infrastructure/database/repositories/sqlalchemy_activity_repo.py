@@ -1,6 +1,5 @@
 """SQLAlchemy implementation of Activity Log repository."""
 
-from typing import Any, Dict, List, Optional
 from uuid import UUID
 
 from sqlalchemy import select
@@ -29,7 +28,7 @@ class SQLAlchemyActivityRepository:
         workspace_id: UUID,
         limit: int = 50,
         offset: int = 0,
-    ) -> List[ActivityLog]:
+    ) -> list[ActivityLog]:
         """Get activity log entries for a workspace, ordered by newest first."""
         stmt = (
             select(ActivityLogModel)
@@ -46,7 +45,7 @@ class SQLAlchemyActivityRepository:
         entity_type: str,
         entity_id: UUID,
         limit: int = 50,
-    ) -> List[ActivityLog]:
+    ) -> list[ActivityLog]:
         """Get activity log entries for a specific entity."""
         stmt = (
             select(ActivityLogModel)
@@ -64,7 +63,7 @@ class SQLAlchemyActivityRepository:
         self,
         user_id: UUID,
         limit: int = 50,
-    ) -> List[ActivityLog]:
+    ) -> list[ActivityLog]:
         """Get activity log entries by a specific user."""
         stmt = (
             select(ActivityLogModel)

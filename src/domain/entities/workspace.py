@@ -3,7 +3,7 @@
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import IntEnum
-from typing import Any, Dict, Optional
+from typing import Any
 from uuid import UUID, uuid4
 
 
@@ -33,8 +33,8 @@ class Workspace:
     created_by: UUID
     id: UUID = field(default_factory=uuid4)
     slug: str = ""
-    description: Optional[str] = None
-    settings: Dict[str, Any] = field(default_factory=dict)
+    description: str | None = None
+    settings: dict[str, Any] = field(default_factory=dict)
     created_at: datetime = field(default_factory=datetime.utcnow)
     updated_at: datetime = field(default_factory=datetime.utcnow)
 
@@ -52,4 +52,4 @@ class WorkspaceMember:
     user_id: UUID
     role: WorkspaceRole = WorkspaceRole.MEMBER
     joined_at: datetime = field(default_factory=datetime.utcnow)
-    invited_by: Optional[UUID] = None
+    invited_by: UUID | None = None

@@ -3,7 +3,6 @@
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import Optional
 from uuid import UUID, uuid4
 
 
@@ -22,7 +21,7 @@ class Group:
     name: str
     created_by: UUID
     id: UUID = field(default_factory=uuid4)
-    description: Optional[str] = None
+    description: str | None = None
     created_at: datetime = field(default_factory=datetime.utcnow)
 
 
