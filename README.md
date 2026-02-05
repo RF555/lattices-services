@@ -26,7 +26,7 @@ RESTful API for managing hierarchical tasks with infinite nesting, multi-user wo
 - [API Documentation](#api-documentation)
 - [Project Structure](#project-structure)
 - [Testing](#testing)
-- [Linting & Formatting](#linting--formatting)
+- [Code Quality](#code-quality)
 - [Deployment](#deployment)
 - [License](#license)
 
@@ -95,8 +95,11 @@ RESTful API for managing hierarchical tasks with infinite nesting, multi-user wo
 | **Rate Limiting** | slowapi |
 | **Serialization** | orjson |
 | **Testing** | pytest + pytest-asyncio + aiosqlite |
-| **Linting** | Ruff |
+| **Linting** | Ruff (E, W, F, I, B, C4, UP, A, SIM, RUF) |
 | **Type Checking** | mypy (strict) |
+| **Pre-commit** | trailing-whitespace, ruff, mypy |
+| **CI** | GitHub Actions (quality + test jobs) |
+| **Task Runner** | [Just](https://just.systems/) |
 
 ---
 
@@ -492,8 +495,12 @@ lattices-services/
 │       └── middleware/
 │           └── test_middleware.py        # Security headers + request ID tests
 ├── migrations/                          # Alembic migration scripts
+├── .github/workflows/ci.yml            # GitHub Actions CI pipeline
+├── .pre-commit-config.yaml             # Pre-commit hook configuration
+├── .vscode/settings.json               # VS Code editor settings
 ├── .env.example                         # Environment variable template
 ├── alembic.ini                          # Alembic configuration
+├── Justfile                             # Just command runner
 ├── pyproject.toml                       # Project config & dependencies
 ├── pyrightconfig.json                   # Pyright/Pylance IDE configuration
 └── render.yaml                          # Render deployment config
@@ -551,26 +558,58 @@ The test infrastructure uses:
 
 ---
 
-## Linting & Formatting
+## Code Quality
 
-The project uses [Ruff](https://docs.astral.sh/ruff/) for linting and formatting.
+The project uses [Ruff](https://docs.astral.sh/ruff/) for linting/formatting, [mypy](https://mypy-lang.org/) for type checking, and [pre-commit](https://pre-commit.com/) hooks to enforce standards automatically.
 
-```bash
-# Check for lint errors
-ruff check src/ tests/
-
-# Auto-fix lint errors
-ruff check src/ tests/ --fix
-
-# Format code
-ruff format src/ tests/
-```
-
-### Type checking
+### Quick commands (via [Just](https://just.systems/))
 
 ```bash
-mypy src/ --strict
+just fmt          # Auto-fix lint errors + format code
+just lint         # Run lint + type checks (read-only)
+just test         # Run tests with coverage
+just check        # Full pipeline: format check + lint + typecheck + tests
+just pre-commit   # Run all pre-commit hooks on all files
+just dev          # Start dev server
 ```
+
+### Manual commands
+
+```bash
+# Lint and format
+ruff check src/ tests/          # Check for lint errors
+ruff check src/ tests/ --fix    # Auto-fix lint errors
+ruff format src/ tests/         # Format code
+
+# Type checking
+mypy src/
+
+# Pre-commit hooks
+pre-commit run --all-files
+```
+
+### Pre-commit hooks
+
+Installed automatically with `pre-commit install`. Runs on every commit:
+
+| Hook | Purpose |
+|------|---------|
+| trailing-whitespace | Remove trailing whitespace |
+| end-of-file-fixer | Ensure files end with newline |
+| check-yaml / check-toml | Validate config files |
+| check-added-large-files | Block files > 500KB |
+| debug-statements | Catch leftover `breakpoint()` / `pdb` |
+| check-merge-conflict | Detect unresolved merge markers |
+| ruff (lint) | Lint with auto-fix |
+| ruff (format) | Enforce consistent formatting |
+| mypy | Strict type checking on `src/` |
+
+### CI Pipeline
+
+GitHub Actions runs on every push to `main` and every pull request:
+
+1. **Code Quality** -- `ruff format --check` + `ruff check` + `mypy`
+2. **Tests** -- `pytest` with coverage report (runs only if quality passes)
 
 ---
 
