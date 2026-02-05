@@ -2,8 +2,13 @@
 
 from typing import Protocol
 
-from domain.repositories.todo_repository import ITodoRepository
+from domain.repositories.activity_repository import IActivityRepository
+from domain.repositories.group_repository import IGroupRepository
+from domain.repositories.invitation_repository import IInvitationRepository
+from domain.repositories.notification_repository import INotificationRepository
 from domain.repositories.tag_repository import ITagRepository
+from domain.repositories.todo_repository import ITodoRepository
+from domain.repositories.workspace_repository import IWorkspaceRepository
 
 
 class IUnitOfWork(Protocol):
@@ -11,6 +16,11 @@ class IUnitOfWork(Protocol):
 
     todos: ITodoRepository
     tags: ITagRepository
+    workspaces: IWorkspaceRepository
+    invitations: IInvitationRepository
+    activities: IActivityRepository
+    groups: IGroupRepository
+    notifications: INotificationRepository
 
     async def commit(self) -> None:
         """Commit the current transaction."""

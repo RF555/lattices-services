@@ -1,8 +1,8 @@
 """Integration tests for Tags API."""
 
-import pytest
 from uuid import uuid4
 
+import pytest
 from httpx import AsyncClient
 
 
@@ -37,12 +37,8 @@ class TestTagsAPI:
     @pytest.mark.asyncio
     async def test_create_duplicate_tag(self, authenticated_client: AsyncClient):
         """Test creating tag with duplicate name returns 409."""
-        await authenticated_client.post(
-            "/api/v1/tags", json={"name": "duplicate-test"}
-        )
-        response = await authenticated_client.post(
-            "/api/v1/tags", json={"name": "duplicate-test"}
-        )
+        await authenticated_client.post("/api/v1/tags", json={"name": "duplicate-test"})
+        response = await authenticated_client.post("/api/v1/tags", json={"name": "duplicate-test"})
 
         assert response.status_code == 409
         assert response.json()["error_code"] == "DUPLICATE_TAG"
@@ -61,9 +57,7 @@ class TestTagsAPI:
     @pytest.mark.asyncio
     async def test_update_tag_name(self, authenticated_client: AsyncClient):
         """Test PATCH /api/v1/tags/{id}."""
-        create = await authenticated_client.post(
-            "/api/v1/tags", json={"name": "old-name"}
-        )
+        create = await authenticated_client.post("/api/v1/tags", json={"name": "old-name"})
         tag_id = create.json()["data"]["id"]
 
         response = await authenticated_client.patch(
@@ -77,9 +71,7 @@ class TestTagsAPI:
     @pytest.mark.asyncio
     async def test_update_tag_color(self, authenticated_client: AsyncClient):
         """Test updating tag color."""
-        create = await authenticated_client.post(
-            "/api/v1/tags", json={"name": "color-update"}
-        )
+        create = await authenticated_client.post("/api/v1/tags", json={"name": "color-update"})
         tag_id = create.json()["data"]["id"]
 
         response = await authenticated_client.patch(
@@ -93,9 +85,7 @@ class TestTagsAPI:
     @pytest.mark.asyncio
     async def test_delete_tag(self, authenticated_client: AsyncClient):
         """Test DELETE /api/v1/tags/{id}."""
-        create = await authenticated_client.post(
-            "/api/v1/tags", json={"name": "to-delete-tag"}
-        )
+        create = await authenticated_client.post("/api/v1/tags", json={"name": "to-delete-tag"})
         tag_id = create.json()["data"]["id"]
 
         response = await authenticated_client.delete(f"/api/v1/tags/{tag_id}")
@@ -115,14 +105,10 @@ class TestTodoTagsAPI:
     async def test_attach_tag_to_todo(self, authenticated_client: AsyncClient):
         """Test POST /api/v1/todos/{id}/tags."""
         # Create tag and todo
-        tag = await authenticated_client.post(
-            "/api/v1/tags", json={"name": "attach-test"}
-        )
+        tag = await authenticated_client.post("/api/v1/tags", json={"name": "attach-test"})
         tag_id = tag.json()["data"]["id"]
 
-        todo = await authenticated_client.post(
-            "/api/v1/todos", json={"title": "Tag Attach Test"}
-        )
+        todo = await authenticated_client.post("/api/v1/todos", json={"title": "Tag Attach Test"})
         todo_id = todo.json()["data"]["id"]
 
         # Attach
@@ -139,14 +125,10 @@ class TestTodoTagsAPI:
     async def test_get_todo_tags(self, authenticated_client: AsyncClient):
         """Test GET /api/v1/todos/{id}/tags."""
         # Create tag and todo
-        tag = await authenticated_client.post(
-            "/api/v1/tags", json={"name": "get-todo-tags-test"}
-        )
+        tag = await authenticated_client.post("/api/v1/tags", json={"name": "get-todo-tags-test"})
         tag_id = tag.json()["data"]["id"]
 
-        todo = await authenticated_client.post(
-            "/api/v1/todos", json={"title": "Get Tags Test"}
-        )
+        todo = await authenticated_client.post("/api/v1/todos", json={"title": "Get Tags Test"})
         todo_id = todo.json()["data"]["id"]
 
         # Attach
@@ -166,14 +148,10 @@ class TestTodoTagsAPI:
     async def test_detach_tag_from_todo(self, authenticated_client: AsyncClient):
         """Test DELETE /api/v1/todos/{id}/tags/{tag_id}."""
         # Create and attach
-        tag = await authenticated_client.post(
-            "/api/v1/tags", json={"name": "detach-test"}
-        )
+        tag = await authenticated_client.post("/api/v1/tags", json={"name": "detach-test"})
         tag_id = tag.json()["data"]["id"]
 
-        todo = await authenticated_client.post(
-            "/api/v1/todos", json={"title": "Detach Test"}
-        )
+        todo = await authenticated_client.post("/api/v1/todos", json={"title": "Detach Test"})
         todo_id = todo.json()["data"]["id"]
 
         await authenticated_client.post(
@@ -182,9 +160,7 @@ class TestTodoTagsAPI:
         )
 
         # Detach
-        response = await authenticated_client.delete(
-            f"/api/v1/todos/{todo_id}/tags/{tag_id}"
-        )
+        response = await authenticated_client.delete(f"/api/v1/todos/{todo_id}/tags/{tag_id}")
         assert response.status_code == 204
 
         # Verify detached
@@ -195,9 +171,7 @@ class TestTodoTagsAPI:
     async def test_todo_includes_tags(self, authenticated_client: AsyncClient):
         """Test that todo list includes tags."""
         # Create tag and todo
-        tag = await authenticated_client.post(
-            "/api/v1/tags", json={"name": "included-tag"}
-        )
+        tag = await authenticated_client.post("/api/v1/tags", json={"name": "included-tag"})
         tag_id = tag.json()["data"]["id"]
 
         todo = await authenticated_client.post(
@@ -221,20 +195,14 @@ class TestTodoTagsAPI:
     async def test_filter_todos_by_tag(self, authenticated_client: AsyncClient):
         """Test filtering todos by tag_id query parameter."""
         # Create tag
-        tag = await authenticated_client.post(
-            "/api/v1/tags", json={"name": "filter-tag"}
-        )
+        tag = await authenticated_client.post("/api/v1/tags", json={"name": "filter-tag"})
         tag_id = tag.json()["data"]["id"]
 
         # Create 2 todos, tag only one
-        tagged = await authenticated_client.post(
-            "/api/v1/todos", json={"title": "Tagged Task"}
-        )
+        tagged = await authenticated_client.post("/api/v1/todos", json={"title": "Tagged Task"})
         tagged_id = tagged.json()["data"]["id"]
 
-        await authenticated_client.post(
-            "/api/v1/todos", json={"title": "Untagged Task"}
-        )
+        await authenticated_client.post("/api/v1/todos", json={"title": "Untagged Task"})
 
         await authenticated_client.post(
             f"/api/v1/todos/{tagged_id}/tags",

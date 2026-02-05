@@ -3,7 +3,7 @@
 from datetime import datetime
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Request, status
+from fastapi import APIRouter, Depends, Query, Request, status
 
 from api.dependencies.auth import CurrentUser
 from api.v1.dependencies import get_tag_service
@@ -32,17 +32,19 @@ async def list_tags(
     request: Request,
     user: CurrentUser,
     service: TagService = Depends(get_tag_service),
+    workspace_id: UUID | None = Query(None, description="Filter by workspace ID"),
 ) -> TagListResponse:
     """Get all tags for the authenticated user, including usage counts."""
-    tags_with_counts = await service.get_all_for_user(user.id)
+    tags_with_counts = await service.get_all_for_user(user.id, workspace_id=workspace_id)
     return TagListResponse(
         data=[
             TagResponse(
-                id=item["tag"].id,
-                name=item["tag"].name,
-                color_hex=item["tag"].color_hex,
-                created_at=item["tag"].created_at,
-                usage_count=item["usage_count"],
+                id=item.tag.id,
+                name=item.tag.name,
+                color_hex=item.tag.color_hex,
+                workspace_id=item.tag.workspace_id,
+                created_at=item.tag.created_at,
+                usage_count=item.usage_count,
             )
             for item in tags_with_counts
         ]
@@ -71,12 +73,14 @@ async def create_tag(
         user_id=user.id,
         name=body.name,
         color_hex=body.color_hex,
+        workspace_id=body.workspace_id,
     )
     return TagDetailResponse(
         data=TagResponse(
             id=tag.id,
             name=tag.name,
             color_hex=tag.color_hex,
+            workspace_id=tag.workspace_id,
             created_at=tag.created_at,
             usage_count=0,
         )
@@ -113,6 +117,7 @@ async def update_tag(
             id=tag.id,
             name=tag.name,
             color_hex=tag.color_hex,
+            workspace_id=tag.workspace_id,
             created_at=tag.created_at,
             usage_count=0,
         )
@@ -164,6 +169,7 @@ async def get_todo_tags(
                 id=tag.id,
                 name=tag.name,
                 color_hex=tag.color_hex,
+                workspace_id=tag.workspace_id,
                 created_at=tag.created_at,
                 usage_count=0,
             )

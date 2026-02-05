@@ -1,9 +1,10 @@
 """Integration tests for Todos API."""
 
-import pytest
 from uuid import uuid4
 
+import pytest
 from httpx import AsyncClient
+from sqlalchemy.ext.asyncio import async_sessionmaker
 
 
 class TestTodosAPI:
@@ -149,9 +150,7 @@ class TestTodosAPI:
             json={"title": "Completed Task"},
         )
         todo_id = create.json()["data"]["id"]
-        await authenticated_client.patch(
-            f"/api/v1/todos/{todo_id}", json={"is_completed": True}
-        )
+        await authenticated_client.patch(f"/api/v1/todos/{todo_id}", json={"is_completed": True})
 
         # Uncomplete
         response = await authenticated_client.patch(
@@ -192,9 +191,7 @@ class TestTodosAPI:
     async def test_delete_todo_cascade(self, authenticated_client: AsyncClient):
         """Test cascade delete removes children."""
         # Create hierarchy
-        parent = await authenticated_client.post(
-            "/api/v1/todos", json={"title": "Cascade Parent"}
-        )
+        parent = await authenticated_client.post("/api/v1/todos", json={"title": "Cascade Parent"})
         parent_id = parent.json()["data"]["id"]
 
         child = await authenticated_client.post(
@@ -207,12 +204,8 @@ class TestTodosAPI:
         await authenticated_client.delete(f"/api/v1/todos/{parent_id}")
 
         # Child should also be deleted
-        assert (
-            await authenticated_client.get(f"/api/v1/todos/{parent_id}")
-        ).status_code == 404
-        assert (
-            await authenticated_client.get(f"/api/v1/todos/{child_id}")
-        ).status_code == 404
+        assert (await authenticated_client.get(f"/api/v1/todos/{parent_id}")).status_code == 404
+        assert (await authenticated_client.get(f"/api/v1/todos/{child_id}")).status_code == 404
 
 
 class TestChildCounts:
@@ -234,9 +227,7 @@ class TestChildCounts:
     @pytest.mark.asyncio
     async def test_parent_shows_child_count(self, authenticated_client: AsyncClient):
         """Parent with 2 children shows child_count=2, completed_child_count=0."""
-        parent = await authenticated_client.post(
-            "/api/v1/todos", json={"title": "Parent"}
-        )
+        parent = await authenticated_client.post("/api/v1/todos", json={"title": "Parent"})
         parent_id = parent.json()["data"]["id"]
 
         await authenticated_client.post(
@@ -256,9 +247,7 @@ class TestChildCounts:
     @pytest.mark.asyncio
     async def test_completed_child_count(self, authenticated_client: AsyncClient):
         """Completing 1 of 2 children shows completed_child_count=1."""
-        parent = await authenticated_client.post(
-            "/api/v1/todos", json={"title": "Parent"}
-        )
+        parent = await authenticated_client.post("/api/v1/todos", json={"title": "Parent"})
         parent_id = parent.json()["data"]["id"]
 
         child1 = await authenticated_client.post(
@@ -271,9 +260,7 @@ class TestChildCounts:
         )
 
         # Complete one child
-        await authenticated_client.patch(
-            f"/api/v1/todos/{child1_id}", json={"is_completed": True}
-        )
+        await authenticated_client.patch(f"/api/v1/todos/{child1_id}", json={"is_completed": True})
 
         response = await authenticated_client.get(f"/api/v1/todos/{parent_id}")
 
@@ -285,9 +272,7 @@ class TestChildCounts:
     @pytest.mark.asyncio
     async def test_child_counts_in_list(self, authenticated_client: AsyncClient):
         """List endpoint includes correct counts for parent and child."""
-        parent = await authenticated_client.post(
-            "/api/v1/todos", json={"title": "List Parent"}
-        )
+        parent = await authenticated_client.post("/api/v1/todos", json={"title": "List Parent"})
         parent_id = parent.json()["data"]["id"]
 
         child = await authenticated_client.post(
@@ -308,9 +293,7 @@ class TestChildCounts:
     @pytest.mark.asyncio
     async def test_child_counts_after_update(self, authenticated_client: AsyncClient):
         """Update endpoint returns fresh child counts."""
-        parent = await authenticated_client.post(
-            "/api/v1/todos", json={"title": "Update Parent"}
-        )
+        parent = await authenticated_client.post("/api/v1/todos", json={"title": "Update Parent"})
         parent_id = parent.json()["data"]["id"]
 
         child = await authenticated_client.post(
@@ -319,9 +302,7 @@ class TestChildCounts:
         child_id = child.json()["data"]["id"]
 
         # Complete the child
-        await authenticated_client.patch(
-            f"/api/v1/todos/{child_id}", json={"is_completed": True}
-        )
+        await authenticated_client.patch(f"/api/v1/todos/{child_id}", json={"is_completed": True})
 
         # Update the parent (e.g. rename) and check counts are fresh
         response = await authenticated_client.patch(
@@ -332,3 +313,143 @@ class TestChildCounts:
         data = response.json()["data"]
         assert data["child_count"] == 1
         assert data["completed_child_count"] == 1
+
+
+class TestTodoQueryFilters:
+    """Tests for query parameter filtering on the list todos endpoint."""
+
+    @pytest.mark.asyncio
+    async def test_list_todos_should_exclude_completed_when_include_completed_is_false(
+        self, authenticated_client: AsyncClient
+    ):
+        """GET /api/v1/todos?include_completed=false excludes completed todos."""
+        # Arrange -- create two todos, complete one
+        open_resp = await authenticated_client.post(
+            "/api/v1/todos", json={"title": "Filter Open Task"}
+        )
+        open_id = open_resp.json()["data"]["id"]
+
+        done_resp = await authenticated_client.post(
+            "/api/v1/todos", json={"title": "Filter Done Task"}
+        )
+        done_id = done_resp.json()["data"]["id"]
+        await authenticated_client.patch(f"/api/v1/todos/{done_id}", json={"is_completed": True})
+
+        # Act -- list with include_completed=false
+        response = await authenticated_client.get(
+            "/api/v1/todos", params={"include_completed": "false"}
+        )
+
+        # Assert
+        assert response.status_code == 200
+        returned_ids = [t["id"] for t in response.json()["data"]]
+        assert open_id in returned_ids
+        assert done_id not in returned_ids
+
+    @pytest.mark.asyncio
+    async def test_list_todos_should_include_completed_by_default(
+        self, authenticated_client: AsyncClient
+    ):
+        """GET /api/v1/todos (default include_completed=true) returns both open and done."""
+        # Arrange -- create one open and one completed todo
+        open_resp = await authenticated_client.post(
+            "/api/v1/todos", json={"title": "Default Open Task"}
+        )
+        open_id = open_resp.json()["data"]["id"]
+
+        done_resp = await authenticated_client.post(
+            "/api/v1/todos", json={"title": "Default Done Task"}
+        )
+        done_id = done_resp.json()["data"]["id"]
+        await authenticated_client.patch(f"/api/v1/todos/{done_id}", json={"is_completed": True})
+
+        # Act -- list without specifying include_completed (defaults to True)
+        response = await authenticated_client.get("/api/v1/todos")
+
+        # Assert
+        assert response.status_code == 200
+        returned_ids = [t["id"] for t in response.json()["data"]]
+        assert open_id in returned_ids
+        assert done_id in returned_ids
+
+    @pytest.mark.asyncio
+    async def test_list_todos_should_filter_by_workspace_id(
+        self,
+        authenticated_client: AsyncClient,
+        session_factory: async_sessionmaker,
+    ):
+        """GET /api/v1/todos?workspace_id=<id> returns only workspace-scoped todos."""
+        from infrastructure.database.models import WorkspaceMemberModel, WorkspaceModel
+        from tests.conftest import TEST_USER_ID
+
+        workspace_id = uuid4()
+
+        # Arrange -- insert a workspace and membership directly into the DB
+        async with session_factory() as session:
+            workspace = WorkspaceModel(
+                id=workspace_id,
+                name="Test Workspace",
+                slug=f"test-ws-{workspace_id.hex[:8]}",
+                created_by=TEST_USER_ID,
+                settings={},
+            )
+            session.add(workspace)
+            member = WorkspaceMemberModel(
+                workspace_id=workspace_id,
+                user_id=TEST_USER_ID,
+                role="owner",
+            )
+            session.add(member)
+            await session.commit()
+
+        # Create a personal (no workspace) todo
+        personal_resp = await authenticated_client.post(
+            "/api/v1/todos", json={"title": "Personal Task"}
+        )
+        personal_id = personal_resp.json()["data"]["id"]
+
+        # Create a workspace-scoped todo
+        ws_resp = await authenticated_client.post(
+            "/api/v1/todos",
+            json={"title": "Workspace Task", "workspace_id": str(workspace_id)},
+        )
+        assert ws_resp.status_code == 201
+        ws_todo_id = ws_resp.json()["data"]["id"]
+
+        # Act -- list with workspace_id filter
+        response = await authenticated_client.get(
+            "/api/v1/todos", params={"workspace_id": str(workspace_id)}
+        )
+
+        # Assert -- only workspace todo appears
+        assert response.status_code == 200
+        returned_ids = [t["id"] for t in response.json()["data"]]
+        assert ws_todo_id in returned_ids
+        assert personal_id not in returned_ids
+        assert response.json()["meta"]["total"] >= 1
+
+    @pytest.mark.asyncio
+    async def test_list_todos_meta_should_report_correct_root_count(
+        self, authenticated_client: AsyncClient
+    ):
+        """Meta root_count reflects only root-level (no parent) todos in the result."""
+        # Arrange -- create a root todo and a child todo
+        root_resp = await authenticated_client.post(
+            "/api/v1/todos", json={"title": "Root For Meta"}
+        )
+        root_id = root_resp.json()["data"]["id"]
+
+        await authenticated_client.post(
+            "/api/v1/todos",
+            json={"title": "Child For Meta", "parent_id": root_id},
+        )
+
+        # Act
+        response = await authenticated_client.get("/api/v1/todos")
+
+        # Assert
+        assert response.status_code == 200
+        meta = response.json()["meta"]
+        all_items = response.json()["data"]
+        actual_root_count = sum(1 for t in all_items if t["parent_id"] is None)
+        assert meta["root_count"] == actual_root_count

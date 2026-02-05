@@ -1,6 +1,6 @@
 """Common Pydantic schemas shared across the API."""
 
-from typing import Any, Optional
+from typing import Any
 
 from pydantic import BaseModel
 
@@ -10,7 +10,7 @@ class ErrorResponse(BaseModel):
 
     error_code: str
     message: str
-    details: Optional[Any] = None
+    details: Any | None = None
 
 
 class MessageResponse(BaseModel):

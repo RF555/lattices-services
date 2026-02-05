@@ -1,5 +1,10 @@
 """Main FastAPI application entry point."""
 
+import asyncio
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
+
+import structlog
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
@@ -13,17 +18,52 @@ from api.middleware.request_id import RequestIDMiddleware
 from api.middleware.security import SecurityHeadersMiddleware
 from api.routes.health import router as health_router
 from api.v1 import router as v1_router
+from api.v1.dependencies import get_notification_service
 from core.config import settings
 from core.logging import setup_logging
 from core.rate_limit import limiter, rate_limit_exceeded_handler
+
+logger = structlog.get_logger()
 
 # Initialize structured logging
 setup_logging()
 
 
+@asynccontextmanager
+async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+    """Application lifespan manager for startup/shutdown tasks."""
+
+    async def notification_cleanup_loop() -> None:
+        """Periodically clean up expired notifications.
+
+        Note: For production, prefer using pg_cron in Supabase Dashboard:
+        SELECT cron.schedule('cleanup-expired-notifications', '0 3 * * 0',
+            $$DELETE FROM notifications
+              WHERE expires_at IS NOT NULL AND expires_at < NOW()$$
+        );
+        """
+        while True:
+            await asyncio.sleep(86400)  # Run once per day
+            try:
+                service = get_notification_service()
+                deleted = await service.cleanup_expired()
+                if deleted > 0:
+                    logger.info(
+                        "notification_cleanup_completed",
+                        deleted_count=deleted,
+                    )
+            except Exception:
+                logger.exception("notification_cleanup_failed")
+
+    cleanup_task = asyncio.create_task(notification_cleanup_loop())
+    yield
+    cleanup_task.cancel()
+
+
 def create_app() -> FastAPI:
     """Create and configure the FastAPI application."""
     app = FastAPI(
+        lifespan=lifespan,
         default_response_class=ORJSONResponse,
         title=settings.app_name,
         description=(
@@ -66,6 +106,10 @@ def create_app() -> FastAPI:
             {
                 "name": "todo-tags",
                 "description": "Task-tag relationship operations",
+            },
+            {
+                "name": "notifications",
+                "description": "Notification management operations",
             },
         ],
     )

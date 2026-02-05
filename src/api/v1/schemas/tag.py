@@ -1,7 +1,6 @@
 """Pydantic schemas for Tag API."""
 
 from datetime import datetime
-from typing import List, Optional
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
@@ -22,14 +21,14 @@ class TagBase(BaseModel):
 class TagCreate(TagBase):
     """Schema for creating a Tag."""
 
-    pass
+    workspace_id: UUID | None = None
 
 
 class TagUpdate(BaseModel):
     """Schema for updating a Tag."""
 
-    name: Optional[str] = Field(None, min_length=1, max_length=50)
-    color_hex: Optional[str] = Field(None, pattern=r"^#[0-9A-Fa-f]{6}$")
+    name: str | None = Field(None, min_length=1, max_length=50)
+    color_hex: str | None = Field(None, pattern=r"^#[0-9A-Fa-f]{6}$")
 
 
 class TagResponse(BaseModel):
@@ -51,6 +50,7 @@ class TagResponse(BaseModel):
     id: UUID
     name: str
     color_hex: str
+    workspace_id: UUID | None = None
     created_at: datetime
     usage_count: int = 0
 
@@ -58,7 +58,7 @@ class TagResponse(BaseModel):
 class TagListResponse(BaseModel):
     """Schema for list of Tags."""
 
-    data: List[TagResponse]
+    data: list[TagResponse]
 
 
 class TagDetailResponse(BaseModel):

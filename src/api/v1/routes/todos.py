@@ -1,6 +1,5 @@
 """Todo API routes."""
 
-from typing import List, Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query, Request, status
@@ -39,15 +38,16 @@ async def list_todos(
     todo_service: TodoService = Depends(get_todo_service),
     tag_service: TagService = Depends(get_tag_service),
     include_completed: bool = Query(True, description="Include completed todos"),
-    tag_id: Optional[UUID] = Query(None, description="Filter by tag ID"),
+    tag_id: UUID | None = Query(None, description="Filter by tag ID"),
+    workspace_id: UUID | None = Query(None, description="Filter by workspace ID"),
 ) -> TodoListResponse:
     """
     Get all tasks for the authenticated user as a flat list.
 
     The frontend assembles the tree structure using `parent_id` references.
-    Supports filtering by completion status and tag.
+    Supports filtering by completion status, tag, and workspace.
     """
-    todos = await todo_service.get_all_for_user(user.id)
+    todos = await todo_service.get_all_for_user(user.id, workspace_id=workspace_id)
 
     # Filter by completion status first
     filtered_todos = todos
@@ -133,6 +133,8 @@ async def create_todo(
         title=body.title,
         description=body.description,
         parent_id=body.parent_id,
+        workspace_id=body.workspace_id,
+        actor_name=user.email,
     )
     return TodoDetailResponse(data=_build_todo_response(todo, []))
 
@@ -164,11 +166,7 @@ async def update_todo(
     Circular references are automatically detected and rejected.
     """
     # Handle parent_id sentinel value: only pass it if explicitly set in request
-    parent_id = (
-        ...
-        if "parent_id" not in body.model_fields_set
-        else body.parent_id
-    )
+    parent_id = ... if "parent_id" not in body.model_fields_set else body.parent_id
 
     todo = await todo_service.update(
         todo_id=todo_id,
@@ -178,6 +176,7 @@ async def update_todo(
         is_completed=body.is_completed,
         parent_id=parent_id,
         position=body.position,
+        actor_name=user.email,
     )
     tags = await tag_service.get_tags_for_todo(todo_id, user.id)
     child_counts = await todo_service.get_child_counts_batch([todo_id])
@@ -202,17 +201,18 @@ async def delete_todo(
     service: TodoService = Depends(get_todo_service),
 ) -> None:
     """Delete a task and all its descendants (cascade delete)."""
-    await service.delete(todo_id, user.id)
+    await service.delete(todo_id, user.id, actor_name=user.email)
     return None
 
 
 def _build_todo_response(
-    todo: Todo, tags: List[Tag], child_count: int = 0, completed_child_count: int = 0
+    todo: Todo, tags: list[Tag], child_count: int = 0, completed_child_count: int = 0
 ) -> TodoResponse:
     """Convert domain entity to response schema with tags and child counts."""
     return TodoResponse(
         id=todo.id,
         parent_id=todo.parent_id,
+        workspace_id=todo.workspace_id,
         title=todo.title,
         description=todo.description,
         is_completed=todo.is_completed,
@@ -220,10 +220,7 @@ def _build_todo_response(
         created_at=todo.created_at,
         updated_at=todo.updated_at,
         completed_at=todo.completed_at,
-        tags=[
-            TagSummary(id=t.id, name=t.name, color_hex=t.color_hex)
-            for t in tags
-        ],
+        tags=[TagSummary(id=t.id, name=t.name, color_hex=t.color_hex) for t in tags],
         child_count=child_count,
         completed_child_count=completed_child_count,
     )

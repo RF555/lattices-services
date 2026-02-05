@@ -1,7 +1,6 @@
 """Health check endpoints."""
 
 from datetime import datetime
-from typing import Optional
 
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
@@ -21,7 +20,7 @@ class HealthResponse(BaseModel):
     version: str
     timestamp: str
     environment: str
-    database: Optional[str] = None
+    database: str | None = None
 
 
 @router.get("/health", response_model=HealthResponse, summary="Basic health check")
@@ -58,7 +57,7 @@ async def detailed_health_check(
         await db.execute(text("SELECT 1"))
         db_status = "healthy"
     except Exception as e:
-        db_status = f"unhealthy: {str(e)}"
+        db_status = f"unhealthy: {e!s}"
 
     overall_status = "healthy" if db_status == "healthy" else "degraded"
 
