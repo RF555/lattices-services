@@ -72,6 +72,7 @@ class TodoResponse(BaseModel):
 
     id: UUID
     parent_id: Optional[UUID]
+    workspace_id: Optional[UUID] = None
     title: str
     description: Optional[str]
     is_completed: bool

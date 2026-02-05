@@ -43,6 +43,7 @@ async def list_tags(
                 id=item["tag"].id,
                 name=item["tag"].name,
                 color_hex=item["tag"].color_hex,
+                workspace_id=item["tag"].workspace_id,
                 created_at=item["tag"].created_at,
                 usage_count=item["usage_count"],
             )
@@ -80,6 +81,7 @@ async def create_tag(
             id=tag.id,
             name=tag.name,
             color_hex=tag.color_hex,
+            workspace_id=tag.workspace_id,
             created_at=tag.created_at,
             usage_count=0,
         )
@@ -116,6 +118,7 @@ async def update_tag(
             id=tag.id,
             name=tag.name,
             color_hex=tag.color_hex,
+            workspace_id=tag.workspace_id,
             created_at=tag.created_at,
             usage_count=0,
         )
@@ -167,6 +170,7 @@ async def get_todo_tags(
                 id=tag.id,
                 name=tag.name,
                 color_hex=tag.color_hex,
+                workspace_id=tag.workspace_id,
                 created_at=tag.created_at,
                 usage_count=0,
             )

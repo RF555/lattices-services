@@ -51,6 +51,7 @@ class TagResponse(BaseModel):
     id: UUID
     name: str
     color_hex: str
+    workspace_id: Optional[UUID] = None
     created_at: datetime
     usage_count: int = 0
 

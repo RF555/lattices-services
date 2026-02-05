@@ -217,6 +217,7 @@ def _build_todo_response(
     return TodoResponse(
         id=todo.id,
         parent_id=todo.parent_id,
+        workspace_id=todo.workspace_id,
         title=todo.title,
         description=todo.description,
         is_completed=todo.is_completed,
