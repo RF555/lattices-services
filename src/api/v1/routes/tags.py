@@ -40,12 +40,12 @@ async def list_tags(
     return TagListResponse(
         data=[
             TagResponse(
-                id=item["tag"].id,
-                name=item["tag"].name,
-                color_hex=item["tag"].color_hex,
-                workspace_id=item["tag"].workspace_id,
-                created_at=item["tag"].created_at,
-                usage_count=item["usage_count"],
+                id=item.tag.id,
+                name=item.tag.name,
+                color_hex=item.tag.color_hex,
+                workspace_id=item.tag.workspace_id,
+                created_at=item.tag.created_at,
+                usage_count=item.usage_count,
             )
             for item in tags_with_counts
         ]

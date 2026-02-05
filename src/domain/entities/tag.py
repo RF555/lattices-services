@@ -23,3 +23,11 @@ class Tag:
         if not self.color_hex.startswith("#"):
             self.color_hex = f"#{self.color_hex}"
         self.color_hex = self.color_hex.upper()
+
+
+@dataclass(frozen=True, slots=True)
+class TagWithCount:
+    """Read-only value object: a Tag bundled with its usage count."""
+
+    tag: Tag
+    usage_count: int

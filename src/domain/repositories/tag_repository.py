@@ -62,3 +62,7 @@ class ITagRepository(Protocol):
     async def get_usage_count(self, tag_id: UUID) -> int:
         """Get the number of todos using this tag."""
         ...
+
+    async def get_usage_counts_batch(self, tag_ids: List[UUID]) -> Dict[UUID, int]:
+        """Get usage counts for multiple tags in a single query."""
+        ...

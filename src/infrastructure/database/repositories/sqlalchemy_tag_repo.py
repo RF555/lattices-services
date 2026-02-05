@@ -166,6 +166,21 @@ class SQLAlchemyTagRepository:
         result = await self._session.execute(stmt)
         return result.scalar() or 0
 
+    async def get_usage_counts_batch(self, tag_ids: List[UUID]) -> Dict[UUID, int]:
+        """Get usage counts for multiple tags in a single query."""
+        if not tag_ids:
+            return {}
+        stmt = (
+            select(
+                TodoTagModel.tag_id,
+                func.count().label("usage_count"),
+            )
+            .where(TodoTagModel.tag_id.in_(tag_ids))
+            .group_by(TodoTagModel.tag_id)
+        )
+        result = await self._session.execute(stmt)
+        return {row.tag_id: row.usage_count for row in result}
+
     def _to_entity(self, model: TagModel) -> Tag:
         """Convert ORM model to domain entity."""
         return Tag(

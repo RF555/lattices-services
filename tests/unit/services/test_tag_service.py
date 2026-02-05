@@ -31,13 +31,13 @@ class TestGetAllForUser:
     async def test_returns_user_tags(self, service: TagService, uow: FakeUnitOfWork, user_id: UUID):
         tag = Tag(user_id=user_id, name="Bug")
         uow.tags.get_all_for_user.return_value = [tag]
-        uow.tags.get_usage_count.return_value = 3
+        uow.tags.get_usage_counts_batch.return_value = {tag.id: 3}
 
         result = await service.get_all_for_user(user_id)
 
         assert len(result) == 1
-        assert result[0]["tag"].name == "Bug"
-        assert result[0]["usage_count"] == 3
+        assert result[0].tag.name == "Bug"
+        assert result[0].usage_count == 3
 
     @pytest.mark.asyncio
     async def test_returns_workspace_tags(
@@ -48,7 +48,7 @@ class TestGetAllForUser:
         )
         tag = Tag(user_id=user_id, name="Feature", workspace_id=workspace_id)
         uow.tags.get_all_for_workspace.return_value = [tag]
-        uow.tags.get_usage_count.return_value = 0
+        uow.tags.get_usage_counts_batch.return_value = {tag.id: 0}
 
         result = await service.get_all_for_user(user_id, workspace_id=workspace_id)
 

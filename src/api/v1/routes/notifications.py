@@ -63,9 +63,9 @@ async def list_workspace_notifications(
         limit=limit,
         cursor=cursor,
     )
-    next_cursor = str(notifications[-1]["id"]) if notifications else None
+    next_cursor = str(notifications[-1].id) if notifications else None
     return NotificationListResponse(
-        data=[NotificationResponse(**n) for n in notifications],
+        data=[NotificationResponse.model_validate(n) for n in notifications],
         meta={"unread_count": unread_count, "next_cursor": next_cursor},
     )
 
@@ -200,9 +200,9 @@ async def list_user_notifications(
         limit=limit,
         cursor=cursor,
     )
-    next_cursor = str(notifications[-1]["id"]) if notifications else None
+    next_cursor = str(notifications[-1].id) if notifications else None
     return NotificationListResponse(
-        data=[NotificationResponse(**n) for n in notifications],
+        data=[NotificationResponse.model_validate(n) for n in notifications],
         meta={"unread_count": unread_count, "next_cursor": next_cursor},
     )
 

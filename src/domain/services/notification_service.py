@@ -13,6 +13,7 @@ from domain.entities.notification import (
     NotificationPreference,
     NotificationRecipient,
     NotificationType,
+    NotificationView,
 )
 from domain.repositories.unit_of_work import IUnitOfWork
 
@@ -144,12 +145,12 @@ class NotificationService:
         is_read: bool | None = None,
         limit: int = 20,
         cursor: UUID | None = None,
-    ) -> tuple[list[dict[str, Any]], int]:
+    ) -> tuple[list[NotificationView], int]:
         """Get paginated notification feed.
 
         Returns:
             Tuple of (notification_list, unread_count).
-            Each notification dict includes recipient fields (id, is_read, etc.).
+            Each NotificationView includes recipient fields (id, is_read, etc.).
         """
         async with self._uow_factory() as uow:
             results = await uow.notifications.get_user_notifications(
@@ -164,22 +165,22 @@ class NotificationService:
             all_types = await uow.notifications.get_all_types()
             type_cache: dict[UUID | None, str] = {t.id: t.name for t in all_types}
 
-            notifications = []
+            notifications: list[NotificationView] = []
             for notif, recipient in results:
                 notifications.append(
-                    {
-                        "id": recipient.id,
-                        "notification_id": notif.id,
-                        "type": type_cache.get(notif.type_id, ""),
-                        "workspace_id": notif.workspace_id,
-                        "actor_id": notif.actor_id,
-                        "entity_type": notif.entity_type,
-                        "entity_id": notif.entity_id,
-                        "metadata": notif.metadata or {},
-                        "is_read": recipient.is_read,
-                        "read_at": recipient.read_at,
-                        "created_at": notif.created_at,
-                    }
+                    NotificationView(
+                        id=recipient.id,
+                        notification_id=notif.id,
+                        type=type_cache.get(notif.type_id, ""),
+                        workspace_id=notif.workspace_id,
+                        actor_id=notif.actor_id,
+                        entity_type=notif.entity_type,
+                        entity_id=notif.entity_id,
+                        metadata=notif.metadata or {},
+                        is_read=recipient.is_read,
+                        read_at=recipient.read_at,
+                        created_at=notif.created_at,
+                    )
                 )
 
             unread_count = await uow.notifications.get_unread_count(user_id, workspace_id)

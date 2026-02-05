@@ -1,6 +1,6 @@
 """Tag service layer with business logic."""
 
-from typing import Any, Callable, Dict, List, Optional
+from typing import Callable, Dict, List, Optional
 from uuid import UUID
 
 from core.exceptions import (
@@ -11,7 +11,7 @@ from core.exceptions import (
     TagNotFoundError,
     TodoNotFoundError,
 )
-from domain.entities.tag import Tag
+from domain.entities.tag import Tag, TagWithCount
 from domain.entities.workspace import WorkspaceRole, has_permission
 from domain.repositories.unit_of_work import IUnitOfWork
 
@@ -24,7 +24,7 @@ class TagService:
 
     async def get_all_for_user(
         self, user_id: UUID, workspace_id: Optional[UUID] = None
-    ) -> List[Dict[str, Any]]:
+    ) -> List[TagWithCount]:
         """Get all tags for user with usage counts, optionally scoped to workspace."""
         async with self._uow_factory() as uow:
             if workspace_id:
@@ -35,14 +35,12 @@ class TagService:
             else:
                 tags = await uow.tags.get_all_for_user(user_id)
 
-            result: List[Dict[str, Any]] = []
-            for tag in tags:
-                count = await uow.tags.get_usage_count(tag.id)
-                result.append({
-                    "tag": tag,
-                    "usage_count": count,
-                })
-            return result
+            tag_ids = [tag.id for tag in tags]
+            usage_counts = await uow.tags.get_usage_counts_batch(tag_ids)
+            return [
+                TagWithCount(tag=tag, usage_count=usage_counts.get(tag.id, 0))
+                for tag in tags
+            ]
 
     async def get_by_id(self, tag_id: UUID, user_id: UUID) -> Tag:
         """Get a specific tag, verifying workspace membership or user ownership."""

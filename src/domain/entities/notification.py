@@ -73,6 +73,23 @@ class NotificationRecipient:
     deleted_at: datetime | None = None
 
 
+@dataclass(frozen=True, slots=True)
+class NotificationView:
+    """Read-only value object: denormalized notification for the API layer."""
+
+    id: UUID
+    notification_id: UUID
+    type: str
+    workspace_id: UUID
+    actor_id: UUID
+    entity_type: str
+    entity_id: UUID
+    metadata: dict[str, Any]
+    is_read: bool
+    read_at: datetime | None
+    created_at: datetime
+
+
 @dataclass
 class NotificationPreference:
     """Domain entity for a user's notification preference."""

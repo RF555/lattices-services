@@ -528,8 +528,8 @@ class TestGetNotifications:
         )
 
         assert len(notifications) == 1
-        assert notifications[0]["type"] == "task.completed"
-        assert notifications[0]["is_read"] is False
+        assert notifications[0].type == "task.completed"
+        assert notifications[0].is_read is False
         assert unread_count == 1
 
     @pytest.mark.asyncio

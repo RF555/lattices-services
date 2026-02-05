@@ -75,7 +75,7 @@ RESTful API for managing hierarchical tasks with infinite nesting, multi-user wo
 - **Rate Limiting** -- Per-IP rate limits (30/min reads, 10/min writes) with `429` responses
 - **Structured Logging** -- JSON logs in production, pretty console in development (structlog)
 - **Security Headers** -- X-Content-Type-Options, X-Frame-Options, HSTS, Request ID tracking
-- **Batch Optimized** -- N+1 query elimination with batch tag and child count fetching
+- **Batch Optimized** -- N+1 query elimination with batch tag fetching, tag usage counts, and child count fetching
 - **GZip + ORJSON** -- Compressed responses and fast JSON serialization
 
 ---
@@ -117,7 +117,7 @@ src/
 - **Repository Pattern** -- Protocol-based interfaces with SQLAlchemy implementations
 - **Unit of Work** -- Transaction management via `SQLAlchemyUnitOfWork` context manager
 - **Dependency Injection** -- FastAPI's `Depends()` with factory functions
-- **Domain Entities** -- Pure Python dataclasses, independent of ORM
+- **Domain Entities** -- Pure Python dataclasses, independent of ORM; frozen dataclass value objects (`TagWithCount`, `NotificationView`) for type-safe service returns
 - **Event-Driven Side Effects** -- Services call `ActivityService.log()` and `NotificationService.notify()` within the same UoW transaction
 
 ```
@@ -423,11 +423,11 @@ lattices-services/
 │   ├── domain/
 │   │   ├── entities/
 │   │   │   ├── todo.py                  # Todo dataclass entity
-│   │   │   ├── tag.py                   # Tag dataclass entity
+│   │   │   ├── tag.py                   # Tag dataclass entity + TagWithCount value object
 │   │   │   ├── workspace.py             # Workspace, WorkspaceMember, WorkspaceRole
 │   │   │   ├── group.py                 # Group, GroupMember, GroupRole
 │   │   │   ├── invitation.py            # Invitation, InvitationStatus
-│   │   │   ├── notification.py          # Notification, preferences, types
+│   │   │   ├── notification.py          # Notification, preferences, types + NotificationView value object
 │   │   │   ├── activity.py              # ActivityLog, action constants
 │   │   │   └── profile.py              # User profile entity
 │   │   ├── repositories/

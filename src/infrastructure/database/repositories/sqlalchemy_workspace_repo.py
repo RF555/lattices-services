@@ -9,7 +9,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from domain.entities.workspace import Workspace, WorkspaceMember, WorkspaceRole
 from infrastructure.database.models import WorkspaceMemberModel, WorkspaceModel
 
-
 # Map string role values in DB to WorkspaceRole enum
 _ROLE_TO_ENUM = {
     "owner": WorkspaceRole.OWNER,
