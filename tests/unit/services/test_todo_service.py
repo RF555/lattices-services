@@ -740,3 +740,417 @@ class TestTodoServiceWorkspaceScoped:
 
         with pytest.raises(TodoNotFoundError):
             await service.delete(other_user_todo.id, user_id)
+
+
+class TestTodoServiceMoveWorkspace:
+    """Tests for move_to_workspace functionality."""
+
+    # -- Helpers / fixtures --------------------------------------------------
+
+    @pytest.fixture
+    def source_ws_id(self) -> UUID:
+        return uuid4()
+
+    @pytest.fixture
+    def target_ws_id(self) -> UUID:
+        return uuid4()
+
+    @pytest.fixture
+    def source_member(self, source_ws_id: UUID, user_id: UUID) -> WorkspaceMember:
+        return WorkspaceMember(
+            workspace_id=source_ws_id, user_id=user_id, role=WorkspaceRole.MEMBER
+        )
+
+    @pytest.fixture
+    def target_member(self, target_ws_id: UUID, user_id: UUID) -> WorkspaceMember:
+        return WorkspaceMember(
+            workspace_id=target_ws_id, user_id=user_id, role=WorkspaceRole.MEMBER
+        )
+
+    @pytest.fixture
+    def ws_todo(self, user_id: UUID, source_ws_id: UUID) -> Todo:
+        return Todo(
+            id=uuid4(),
+            user_id=user_id,
+            workspace_id=source_ws_id,
+            title="WS Task",
+            position=0,
+        )
+
+    @pytest.fixture
+    def child_todo(self, user_id: UUID, source_ws_id: UUID, ws_todo: Todo) -> Todo:
+        return Todo(
+            id=uuid4(),
+            user_id=user_id,
+            workspace_id=source_ws_id,
+            title="Child Task",
+            parent_id=ws_todo.id,
+            position=0,
+        )
+
+    @pytest.fixture
+    def activity_service(self) -> ActivityService:
+        return AsyncMock(spec=ActivityService)
+
+    @pytest.fixture
+    def notification_service(self) -> NotificationService:
+        return AsyncMock(spec=NotificationService)
+
+    @pytest.fixture
+    def move_service(
+        self,
+        uow: FakeUnitOfWork,
+        activity_service: ActivityService,
+        notification_service: NotificationService,
+    ) -> TodoService:
+        return TodoService(
+            lambda: uow,
+            activity_service=activity_service,
+            notification_service=notification_service,
+        )
+
+    # -- Happy path tests ---------------------------------------------------
+
+    @pytest.mark.asyncio
+    async def test_move_workspace_to_workspace(
+        self,
+        move_service: TodoService,
+        uow: FakeUnitOfWork,
+        user_id: UUID,
+        source_ws_id: UUID,
+        target_ws_id: UUID,
+        source_member: WorkspaceMember,
+        target_member: WorkspaceMember,
+        ws_todo: Todo,
+    ):
+        """Moving a todo between workspaces updates workspace_id and commits."""
+        uow.todos.get.return_value = ws_todo
+
+        def get_member_side_effect(ws_id, uid):
+            if ws_id == source_ws_id:
+                return source_member
+            if ws_id == target_ws_id:
+                return target_member
+            return None
+
+        uow.workspaces.get_member = AsyncMock(side_effect=get_member_side_effect)
+        uow.todos.get_all_descendants.return_value = []
+        uow.todos.update.return_value = ws_todo
+        uow.workspaces.get_members.return_value = [source_member]
+
+        result = await move_service.move_to_workspace(
+            todo_id=ws_todo.id,
+            user_id=user_id,
+            target_workspace_id=target_ws_id,
+        )
+
+        assert result.workspace_id == target_ws_id
+        assert uow.committed
+        uow.tags.detach_all_from_todo.assert_called_once_with(ws_todo.id)
+
+    @pytest.mark.asyncio
+    async def test_move_detaches_parent(
+        self,
+        uow: FakeUnitOfWork,
+        user_id: UUID,
+        source_ws_id: UUID,
+        target_ws_id: UUID,
+        source_member: WorkspaceMember,
+        target_member: WorkspaceMember,
+    ):
+        """Moving a child todo detaches it from its parent."""
+        parent = Todo(id=uuid4(), user_id=user_id, workspace_id=source_ws_id, title="Parent")
+        child = Todo(
+            id=uuid4(),
+            user_id=user_id,
+            workspace_id=source_ws_id,
+            title="Child",
+            parent_id=parent.id,
+        )
+        uow.todos.get.return_value = child
+
+        def get_member_side_effect(ws_id, uid):
+            if ws_id == source_ws_id:
+                return source_member
+            if ws_id == target_ws_id:
+                return target_member
+            return None
+
+        uow.workspaces.get_member = AsyncMock(side_effect=get_member_side_effect)
+        uow.todos.get_all_descendants.return_value = []
+        uow.todos.update.return_value = child
+
+        service = TodoService(lambda: uow)
+        await service.move_to_workspace(child.id, user_id, target_ws_id)
+
+        # The child's parent_id should be set to None before update
+        assert child.parent_id is None
+
+    @pytest.mark.asyncio
+    async def test_move_strips_tags_from_subtree(
+        self,
+        uow: FakeUnitOfWork,
+        user_id: UUID,
+        source_ws_id: UUID,
+        target_ws_id: UUID,
+        source_member: WorkspaceMember,
+        target_member: WorkspaceMember,
+        ws_todo: Todo,
+        child_todo: Todo,
+    ):
+        """Moving a todo strips tags from itself and all descendants."""
+
+        def get_member_side_effect(ws_id, uid):
+            if ws_id == source_ws_id:
+                return source_member
+            if ws_id == target_ws_id:
+                return target_member
+            return None
+
+        uow.todos.get.return_value = ws_todo
+        uow.workspaces.get_member = AsyncMock(side_effect=get_member_side_effect)
+        uow.todos.get_all_descendants.return_value = [child_todo]
+        uow.todos.update.return_value = ws_todo
+
+        service = TodoService(lambda: uow)
+        await service.move_to_workspace(ws_todo.id, user_id, target_ws_id)
+
+        # detach_all_from_todo called for parent and child
+        assert uow.tags.detach_all_from_todo.call_count == 2
+        called_ids = {call.args[0] for call in uow.tags.detach_all_from_todo.call_args_list}
+        assert called_ids == {ws_todo.id, child_todo.id}
+
+    @pytest.mark.asyncio
+    async def test_move_updates_all_descendants_workspace_id(
+        self,
+        uow: FakeUnitOfWork,
+        user_id: UUID,
+        source_ws_id: UUID,
+        target_ws_id: UUID,
+        source_member: WorkspaceMember,
+        target_member: WorkspaceMember,
+        ws_todo: Todo,
+        child_todo: Todo,
+    ):
+        """All descendants get the target workspace_id."""
+
+        def get_member_side_effect(ws_id, uid):
+            if ws_id == source_ws_id:
+                return source_member
+            if ws_id == target_ws_id:
+                return target_member
+            return None
+
+        uow.todos.get.return_value = ws_todo
+        uow.workspaces.get_member = AsyncMock(side_effect=get_member_side_effect)
+        uow.todos.get_all_descendants.return_value = [child_todo]
+        uow.todos.update.return_value = ws_todo
+
+        service = TodoService(lambda: uow)
+        await service.move_to_workspace(ws_todo.id, user_id, target_ws_id)
+
+        assert child_todo.workspace_id == target_ws_id
+        # update called for both root todo and child
+        assert uow.todos.update.call_count == 2
+
+    # -- Authorization tests ------------------------------------------------
+
+    @pytest.mark.asyncio
+    async def test_move_requires_member_in_source_workspace(
+        self, uow: FakeUnitOfWork, user_id: UUID, source_ws_id: UUID, ws_todo: Todo
+    ):
+        """Moving from a workspace requires MEMBER+ in source."""
+        uow.todos.get.return_value = ws_todo
+        uow.workspaces.get_member.return_value = None  # not a member
+
+        service = TodoService(lambda: uow)
+        with pytest.raises(NotAMemberError):
+            await service.move_to_workspace(ws_todo.id, user_id, uuid4())
+
+    @pytest.mark.asyncio
+    async def test_move_requires_member_in_target_workspace(
+        self,
+        uow: FakeUnitOfWork,
+        user_id: UUID,
+        source_ws_id: UUID,
+        target_ws_id: UUID,
+        source_member: WorkspaceMember,
+        ws_todo: Todo,
+    ):
+        """Moving to a workspace requires MEMBER+ in target."""
+
+        def get_member_side_effect(ws_id, uid):
+            if ws_id == source_ws_id:
+                return source_member
+            return None  # not a member in target
+
+        uow.todos.get.return_value = ws_todo
+        uow.workspaces.get_member = AsyncMock(side_effect=get_member_side_effect)
+
+        service = TodoService(lambda: uow)
+        with pytest.raises(NotAMemberError):
+            await service.move_to_workspace(ws_todo.id, user_id, target_ws_id)
+
+    @pytest.mark.asyncio
+    async def test_move_personal_to_workspace(
+        self,
+        uow: FakeUnitOfWork,
+        user_id: UUID,
+        target_ws_id: UUID,
+        target_member: WorkspaceMember,
+    ):
+        """Moving a personal todo into a workspace works for the owner."""
+        personal_todo = Todo(id=uuid4(), user_id=user_id, title="Personal Task")
+        uow.todos.get.return_value = personal_todo
+        uow.workspaces.get_member.return_value = target_member
+        uow.todos.get_all_descendants.return_value = []
+        uow.todos.update.return_value = personal_todo
+
+        service = TodoService(lambda: uow)
+        result = await service.move_to_workspace(personal_todo.id, user_id, target_ws_id)
+
+        assert result.workspace_id == target_ws_id
+        assert uow.committed
+
+    @pytest.mark.asyncio
+    async def test_move_workspace_to_personal(
+        self,
+        uow: FakeUnitOfWork,
+        user_id: UUID,
+        source_ws_id: UUID,
+        source_member: WorkspaceMember,
+        ws_todo: Todo,
+    ):
+        """Moving a workspace todo to personal works for the creator."""
+        uow.todos.get.return_value = ws_todo
+        uow.workspaces.get_member.return_value = source_member
+        uow.todos.get_all_descendants.return_value = []
+        uow.todos.update.return_value = ws_todo
+
+        service = TodoService(lambda: uow)
+        result = await service.move_to_workspace(ws_todo.id, user_id, None)
+
+        assert result.workspace_id is None
+        assert uow.committed
+
+    @pytest.mark.asyncio
+    async def test_move_to_personal_rejects_non_creator(
+        self,
+        uow: FakeUnitOfWork,
+        user_id: UUID,
+        source_ws_id: UUID,
+        source_member: WorkspaceMember,
+    ):
+        """Only the todo creator can move it to personal."""
+        other_user_id = uuid4()
+        ws_todo = Todo(
+            id=uuid4(),
+            user_id=other_user_id,
+            workspace_id=source_ws_id,
+            title="Not My Task",
+        )
+        uow.todos.get.return_value = ws_todo
+        uow.workspaces.get_member.return_value = source_member
+
+        service = TodoService(lambda: uow)
+        with pytest.raises(AppException) as exc_info:
+            await service.move_to_workspace(ws_todo.id, user_id, None)
+
+        assert exc_info.value.status_code == 403
+
+    @pytest.mark.asyncio
+    async def test_move_noop_when_same_workspace(
+        self,
+        uow: FakeUnitOfWork,
+        user_id: UUID,
+        source_ws_id: UUID,
+        source_member: WorkspaceMember,
+        ws_todo: Todo,
+    ):
+        """Moving to the same workspace is a no-op."""
+        uow.todos.get.return_value = ws_todo
+        uow.workspaces.get_member.return_value = source_member
+
+        service = TodoService(lambda: uow)
+        result = await service.move_to_workspace(ws_todo.id, user_id, source_ws_id)
+
+        assert result.id == ws_todo.id
+        uow.todos.update.assert_not_called()
+        assert not uow.committed
+
+    # -- Activity and notification tests ------------------------------------
+
+    @pytest.mark.asyncio
+    async def test_move_logs_activity_in_both_workspaces(
+        self,
+        move_service: TodoService,
+        uow: FakeUnitOfWork,
+        user_id: UUID,
+        source_ws_id: UUID,
+        target_ws_id: UUID,
+        source_member: WorkspaceMember,
+        target_member: WorkspaceMember,
+        ws_todo: Todo,
+        activity_service: ActivityService,
+    ):
+        """Activity logged in both source (moved_out) and target (moved_in) workspaces."""
+
+        def get_member_side_effect(ws_id, uid):
+            if ws_id == source_ws_id:
+                return source_member
+            if ws_id == target_ws_id:
+                return target_member
+            return None
+
+        uow.todos.get.return_value = ws_todo
+        uow.workspaces.get_member = AsyncMock(side_effect=get_member_side_effect)
+        uow.todos.get_all_descendants.return_value = []
+        uow.todos.update.return_value = ws_todo
+        uow.workspaces.get_members.return_value = [source_member]
+
+        await move_service.move_to_workspace(ws_todo.id, user_id, target_ws_id)
+
+        assert activity_service.log.call_count == 2
+        calls = activity_service.log.call_args_list
+
+        ws_ids = {call.kwargs["workspace_id"] for call in calls}
+        assert ws_ids == {source_ws_id, target_ws_id}
+
+        for call in calls:
+            assert call.kwargs["action"] == Actions.TODO_WORKSPACE_CHANGED
+
+    @pytest.mark.asyncio
+    async def test_move_sends_notifications_to_both_workspaces(
+        self,
+        move_service: TodoService,
+        uow: FakeUnitOfWork,
+        user_id: UUID,
+        source_ws_id: UUID,
+        target_ws_id: UUID,
+        source_member: WorkspaceMember,
+        target_member: WorkspaceMember,
+        ws_todo: Todo,
+        notification_service: NotificationService,
+    ):
+        """Notifications sent to members of both source and target workspaces."""
+
+        def get_member_side_effect(ws_id, uid):
+            if ws_id == source_ws_id:
+                return source_member
+            if ws_id == target_ws_id:
+                return target_member
+            return None
+
+        uow.todos.get.return_value = ws_todo
+        uow.workspaces.get_member = AsyncMock(side_effect=get_member_side_effect)
+        uow.todos.get_all_descendants.return_value = []
+        uow.todos.update.return_value = ws_todo
+        uow.workspaces.get_members.return_value = [source_member]
+
+        await move_service.move_to_workspace(ws_todo.id, user_id, target_ws_id)
+
+        assert notification_service.notify.call_count == 2
+        calls = notification_service.notify.call_args_list
+
+        for call in calls:
+            assert call.kwargs["type_name"] == NotificationTypes.TASK_MOVED_WORKSPACE

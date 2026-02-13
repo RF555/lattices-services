@@ -11,6 +11,7 @@ from api.v1.schemas.todo import (
     TodoCreate,
     TodoDetailResponse,
     TodoListResponse,
+    TodoMoveWorkspace,
     TodoResponse,
     TodoUpdate,
 )
@@ -203,6 +204,49 @@ async def delete_todo(
     """Delete a task and all its descendants (cascade delete)."""
     await service.delete(todo_id, user.id, actor_name=user.email)
     return None
+
+
+@router.post(
+    "/{todo_id}/move",
+    response_model=TodoDetailResponse,
+    summary="Move a task to a different workspace",
+    responses={
+        200: {"description": "Task moved successfully"},
+        400: {"description": "Invalid move (e.g. same workspace)"},
+        403: {"description": "Insufficient permissions in source or target workspace"},
+        404: {"description": "Task or workspace not found"},
+    },
+)
+@limiter.limit("10/minute")  # type: ignore[untyped-decorator]
+async def move_todo_workspace(
+    request: Request,
+    todo_id: UUID,
+    body: TodoMoveWorkspace,
+    user: CurrentUser,
+    todo_service: TodoService = Depends(get_todo_service),
+    tag_service: TagService = Depends(get_tag_service),
+) -> TodoDetailResponse:
+    """
+    Move a task and its entire subtree to a different workspace.
+
+    Set `target_workspace_id` to a workspace UUID to move into that workspace,
+    or `null` to move the task to personal (no workspace).
+
+    This operation:
+    - Detaches the task from its parent (becomes a root task in the target).
+    - Removes all tag associations (tags are workspace-scoped).
+    - Moves all descendant tasks to the target workspace.
+    """
+    todo = await todo_service.move_to_workspace(
+        todo_id=todo_id,
+        user_id=user.id,
+        target_workspace_id=body.target_workspace_id,
+        actor_name=user.email,
+    )
+    tags = await tag_service.get_tags_for_todo(todo_id, user.id)
+    child_counts = await todo_service.get_child_counts_batch([todo_id])
+    cc, ccc = child_counts.get(todo_id, (0, 0))
+    return TodoDetailResponse(data=_build_todo_response(todo, tags, cc, ccc))
 
 
 def _build_todo_response(

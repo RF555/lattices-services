@@ -57,6 +57,10 @@ class ITagRepository(Protocol):
         """Detach a tag from a todo."""
         ...
 
+    async def detach_all_from_todo(self, todo_id: UUID) -> None:
+        """Remove all tag associations from a todo."""
+        ...
+
     async def get_usage_count(self, tag_id: UUID) -> int:
         """Get the number of todos using this tag."""
         ...

@@ -78,6 +78,7 @@ class SQLAlchemyTodoRepository:
             raise ValueError(f"Todo {todo.id} not found")
 
         # Update fields
+        model.workspace_id = todo.workspace_id
         model.parent_id = todo.parent_id
         model.title = todo.title
         model.description = todo.description
@@ -101,6 +102,20 @@ class SQLAlchemyTodoRepository:
         await self._session.delete(model)
         await self._session.flush()
         return True
+
+    async def get_all_descendants(self, todo_id: UUID) -> list[Todo]:
+        """Get all descendants of a todo (children, grandchildren, etc.) via BFS."""
+        descendants: list[Todo] = []
+        queue: list[UUID] = [todo_id]
+
+        while queue:
+            parent_id = queue.pop(0)
+            children = await self.get_children(parent_id)
+            for child in children:
+                descendants.append(child)
+                queue.append(child.id)
+
+        return descendants
 
     async def get_child_counts_batch(self, todo_ids: list[UUID]) -> dict[UUID, tuple[int, int]]:
         """Get child counts for multiple todos in a single query."""

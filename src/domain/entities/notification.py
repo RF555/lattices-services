@@ -17,6 +17,7 @@ class NotificationTypes:
     TASK_UPDATED = "task.updated"
     TASK_CREATED = "task.created"
     TASK_DELETED = "task.deleted"
+    TASK_MOVED_WORKSPACE = "task.moved_workspace"
 
     # Member notifications
     MEMBER_ADDED = "member.added"

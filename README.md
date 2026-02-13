@@ -7,7 +7,7 @@
 [![SQLAlchemy 2.0](https://img.shields.io/badge/SQLAlchemy-2.0+-D71F00?logo=sqlalchemy&logoColor=white)](https://www.sqlalchemy.org/)
 [![Pydantic v2](https://img.shields.io/badge/Pydantic-v2-E92063?logo=pydantic&logoColor=white)](https://docs.pydantic.dev/)
 [![Code style: Ruff](https://img.shields.io/badge/Code_style-Ruff-D7FF64?logo=ruff&logoColor=black)](https://docs.astral.sh/ruff/)
-[![Tests: 303](https://img.shields.io/badge/Tests-303_passing-brightgreen)](tests/)
+[![Tests: 322](https://img.shields.io/badge/Tests-322_passing-brightgreen)](tests/)
 [![Coverage: 86%](https://img.shields.io/badge/Coverage-86%25-brightgreen)](tests/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
@@ -40,6 +40,7 @@ RESTful API for managing hierarchical tasks with infinite nesting, multi-user wo
 - **Cycle Detection** -- Prevents circular parent-child relationships
 - **Child Progress Counts** -- Backend-computed `child_count` and `completed_child_count` on every task response
 - **Tag System** -- Organize tasks with customizable color-coded tags (many-to-many)
+- **Workspace Move** -- Move a task (and its entire subtree) between workspaces or to/from personal space, with atomic parent detachment, tag stripping, and dual activity/notification logging
 
 ### Multi-User Workspaces
 - **Workspace Management** -- Create shared workspaces with unique slugs for team collaboration
@@ -268,6 +269,7 @@ Authorization: Bearer <your_token>
 | `GET` | `/api/v1/todos/{id}` | Get a task with tags | 30/min |
 | `PATCH` | `/api/v1/todos/{id}` | Update a task | 10/min |
 | `DELETE` | `/api/v1/todos/{id}` | Delete a task (cascade children) | 10/min |
+| `POST` | `/api/v1/todos/{id}/move` | Move task (+ subtree) to another workspace | 10/min |
 
 #### Tags
 
@@ -371,6 +373,17 @@ curl -X POST http://localhost:8000/api/v1/todos \
   -H "X-Workspace-ID: <workspace_id>" \
   -d '{"title": "Team standup notes", "workspace_id": "<workspace_id>"}'
 ```
+
+**Move a task to a different workspace:**
+
+```bash
+curl -X POST http://localhost:8000/api/v1/todos/<todo_id>/move \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{"target_workspace_id": "<target_workspace_id>"}'
+```
+
+> Moves the task and all its descendants to the target workspace. Tags are stripped (workspace-scoped), and the task becomes a root in the target. Set `target_workspace_id` to `null` to move to personal space.
 
 **Create a child task:**
 
@@ -534,11 +547,11 @@ pytest tests/integration/api/test_todos_api.py -v
 
 | Test Type | Count | Location | Scope |
 |---|---|---|---|
-| **Unit** (Services) | 163 | `tests/unit/services/` | Business logic, permissions, side effects |
+| **Unit** (Services) | 201 | `tests/unit/services/` | Business logic, permissions, side effects |
 | **Unit** (Auth) | 23 | `tests/unit/auth/` | JWT validation, auth dependencies |
 | **Unit** (API/Middleware) | 10 | `tests/unit/api/`, `tests/unit/middleware/` | Exception handlers, security headers |
-| **Integration** (API) | 107 | `tests/integration/api/` | Full request/response through all layers |
-| **Total** | **303** | | **86% line coverage** |
+| **Integration** (API) | 88 | `tests/integration/api/` | Full request/response through all layers |
+| **Total** | **322** | | **86% line coverage** |
 
 ### Coverage highlights
 
