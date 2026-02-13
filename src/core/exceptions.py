@@ -26,6 +26,7 @@ class ErrorCode(StrEnum):
     CIRCULAR_REFERENCE = "CIRCULAR_REFERENCE"
     INVALID_ROLE = "INVALID_ROLE"
     LAST_OWNER = "LAST_OWNER"
+    WORKSPACE_MOVE_INVALID = "WORKSPACE_MOVE_INVALID"
 
     # Authorization errors (403) - workspace-specific
     NOT_A_MEMBER = "NOT_A_MEMBER"

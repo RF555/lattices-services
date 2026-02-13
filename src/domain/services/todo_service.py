@@ -353,6 +353,161 @@ class TodoService:
 
             return deleted  # type: ignore[no-any-return]
 
+    async def move_to_workspace(
+        self,
+        todo_id: UUID,
+        user_id: UUID,
+        target_workspace_id: UUID | None,
+        actor_name: str | None = None,
+    ) -> Todo:
+        """Move a todo and its entire subtree to a different workspace.
+
+        Handles: authorization on source & target, parent detachment,
+        tag stripping, subtree workspace update, activity logging, and notifications.
+
+        Args:
+            todo_id: The todo to move.
+            user_id: The user performing the move.
+            target_workspace_id: Destination workspace ID, or None for personal.
+            actor_name: Display name for activity/notification metadata.
+
+        Returns:
+            The updated root todo after the move.
+        """
+        async with self._uow_factory() as uow:
+            todo = await uow.todos.get(todo_id)
+            if not todo:
+                raise TodoNotFoundError(str(todo_id))
+
+            source_workspace_id = todo.workspace_id
+
+            # --- Source authorization ---
+            if source_workspace_id:
+                await self._require_workspace_role(
+                    uow, source_workspace_id, user_id, WorkspaceRole.MEMBER
+                )
+            elif todo.user_id != user_id:
+                raise TodoNotFoundError(str(todo_id))
+
+            # --- Target authorization ---
+            if target_workspace_id:
+                await self._require_workspace_role(
+                    uow, target_workspace_id, user_id, WorkspaceRole.MEMBER
+                )
+            else:
+                # Moving to personal: only the todo creator can do this
+                if todo.user_id != user_id:
+                    raise AppException(
+                        ErrorCode.WORKSPACE_MOVE_INVALID,
+                        "Only the task creator can move it to personal",
+                        403,
+                    )
+
+            # --- No-op guard ---
+            if source_workspace_id == target_workspace_id:
+                return todo
+
+            # --- Detach from parent (parent stays in source workspace) ---
+            if todo.parent_id is not None:
+                todo.parent_id = None
+
+            # --- Collect entire subtree ---
+            descendants = await uow.todos.get_all_descendants(todo_id)
+
+            # --- Strip tags from todo and all descendants ---
+            await uow.tags.detach_all_from_todo(todo_id)
+            for descendant in descendants:
+                await uow.tags.detach_all_from_todo(descendant.id)
+
+            # --- Update workspace_id on todo and all descendants ---
+            now = datetime.utcnow()
+
+            todo.workspace_id = target_workspace_id
+            todo.updated_at = now
+            updated = await uow.todos.update(todo)
+
+            for descendant in descendants:
+                descendant.workspace_id = target_workspace_id
+                descendant.updated_at = now
+                await uow.todos.update(descendant)
+
+            moved_count = 1 + len(descendants)
+
+            # --- Activity logging (both workspaces) ---
+            if self._activity:
+                if source_workspace_id:
+                    await self._activity.log(
+                        uow=uow,
+                        workspace_id=source_workspace_id,
+                        actor_id=user_id,
+                        action=Actions.TODO_WORKSPACE_CHANGED,
+                        entity_type="todo",
+                        entity_id=todo_id,
+                        metadata={
+                            "title": updated.title,
+                            "direction": "moved_out",
+                            "target_workspace_id": str(target_workspace_id)
+                            if target_workspace_id
+                            else None,
+                            "moved_count": moved_count,
+                        },
+                    )
+                if target_workspace_id:
+                    await self._activity.log(
+                        uow=uow,
+                        workspace_id=target_workspace_id,
+                        actor_id=user_id,
+                        action=Actions.TODO_WORKSPACE_CHANGED,
+                        entity_type="todo",
+                        entity_id=todo_id,
+                        metadata={
+                            "title": updated.title,
+                            "direction": "moved_in",
+                            "source_workspace_id": str(source_workspace_id)
+                            if source_workspace_id
+                            else None,
+                            "moved_count": moved_count,
+                        },
+                    )
+
+            # --- Notifications (both workspaces) ---
+            if self._notification:
+                notif_metadata = {
+                    "actor_name": actor_name or "",
+                    "entity_title": updated.title,
+                    "moved_count": moved_count,
+                }
+                if source_workspace_id:
+                    members = await uow.workspaces.get_members(source_workspace_id)
+                    recipient_ids = [m.user_id for m in members]
+                    await self._notification.notify(
+                        uow=uow,
+                        type_name=NotificationTypes.TASK_MOVED_WORKSPACE,
+                        workspace_id=source_workspace_id,
+                        actor_id=user_id,
+                        entity_type="todo",
+                        entity_id=todo_id,
+                        recipient_ids=recipient_ids,
+                        metadata={**notif_metadata, "direction": "moved_out"},
+                    )
+                if target_workspace_id:
+                    members = await uow.workspaces.get_members(target_workspace_id)
+                    recipient_ids = [m.user_id for m in members]
+                    await self._notification.notify(
+                        uow=uow,
+                        type_name=NotificationTypes.TASK_MOVED_WORKSPACE,
+                        workspace_id=target_workspace_id,
+                        actor_id=user_id,
+                        entity_type="todo",
+                        entity_id=todo_id,
+                        recipient_ids=recipient_ids,
+                        metadata={**notif_metadata, "direction": "moved_in"},
+                    )
+
+            await uow.commit()
+
+            return updated
+
     async def _would_create_cycle(
         self, uow: IUnitOfWork, todo_id: UUID, new_parent_id: UUID
     ) -> bool:

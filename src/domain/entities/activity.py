@@ -19,6 +19,7 @@ class Actions:
     TODO_UNCOMPLETED = "todo.uncompleted"
     TODO_DELETED = "todo.deleted"
     TODO_MOVED = "todo.moved"
+    TODO_WORKSPACE_CHANGED = "todo.workspace_changed"
 
     # Tag actions
     TAG_CREATED = "tag.created"

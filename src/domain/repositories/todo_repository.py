@@ -41,6 +41,10 @@ class ITodoRepository(Protocol):
         """Delete a todo and return success status."""
         ...
 
+    async def get_all_descendants(self, todo_id: UUID) -> list[Todo]:
+        """Get all descendants of a todo (children, grandchildren, etc.)."""
+        ...
+
     async def get_child_counts_batch(self, todo_ids: list[UUID]) -> dict[UUID, tuple[int, int]]:
         """Get child counts for multiple todos in a single query.
 

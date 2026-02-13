@@ -31,6 +31,12 @@ class TodoUpdate(BaseModel):
     position: int | None = Field(None, ge=0)
 
 
+class TodoMoveWorkspace(BaseModel):
+    """Schema for moving a todo to a different workspace."""
+
+    target_workspace_id: UUID | None = None  # None = move to personal
+
+
 class TagSummary(BaseModel):
     """Minimal tag representation for embedding in Todo response."""
 

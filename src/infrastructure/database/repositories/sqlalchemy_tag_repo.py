@@ -145,6 +145,12 @@ class SQLAlchemyTagRepository:
         await self._session.execute(stmt)
         await self._session.flush()
 
+    async def detach_all_from_todo(self, todo_id: UUID) -> None:
+        """Remove all tag associations from a todo."""
+        stmt = delete(TodoTagModel).where(TodoTagModel.todo_id == todo_id)
+        await self._session.execute(stmt)
+        await self._session.flush()
+
     async def get_usage_count(self, tag_id: UUID) -> int:
         """Get the number of todos using this tag."""
         stmt = select(func.count()).select_from(TodoTagModel).where(TodoTagModel.tag_id == tag_id)
