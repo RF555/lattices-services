@@ -29,8 +29,8 @@ class TestGetCurrentUser:
     @pytest.mark.asyncio
     async def test_returns_user_with_valid_token(
         self, mock_auth_provider: JWTAuthProvider, test_token_user: TokenUser
-    ):
-        token = mock_auth_provider.create_token(test_token_user)
+    ) -> None:
+        token = str(mock_auth_provider.create_token(test_token_user))
         credentials = HTTPAuthorizationCredentials(scheme="Bearer", credentials=token)
 
         result = await get_current_user(credentials, mock_auth_provider)
@@ -39,14 +39,14 @@ class TestGetCurrentUser:
         assert result.id == test_token_user.id
 
     @pytest.mark.asyncio
-    async def test_raises_when_no_credentials(self, mock_auth_provider: JWTAuthProvider):
+    async def test_raises_when_no_credentials(self, mock_auth_provider: JWTAuthProvider) -> None:
         with pytest.raises(AuthenticationError) as exc_info:
             await get_current_user(None, mock_auth_provider)
 
         assert exc_info.value.error_code == ErrorCode.UNAUTHORIZED
 
     @pytest.mark.asyncio
-    async def test_raises_when_invalid_token(self, mock_auth_provider: JWTAuthProvider):
+    async def test_raises_when_invalid_token(self, mock_auth_provider: JWTAuthProvider) -> None:
         credentials = HTTPAuthorizationCredentials(scheme="Bearer", credentials="invalid.jwt.token")
 
         with pytest.raises(AuthenticationError) as exc_info:
@@ -55,10 +55,10 @@ class TestGetCurrentUser:
         assert exc_info.value.error_code == ErrorCode.INVALID_TOKEN
 
     @pytest.mark.asyncio
-    async def test_raises_when_expired_token(self, test_token_user: TokenUser):
+    async def test_raises_when_expired_token(self, test_token_user: TokenUser) -> None:
         # Create provider with 0 expiry to generate expired tokens
         provider = JWTAuthProvider(secret_key="test-secret", algorithm="HS256", expire_minutes=-1)
-        token = provider.create_token(test_token_user)
+        token = str(provider.create_token(test_token_user))
         credentials = HTTPAuthorizationCredentials(scheme="Bearer", credentials=token)
 
         # Use normal provider for validation
@@ -79,8 +79,8 @@ class TestGetOptionalUser:
     @pytest.mark.asyncio
     async def test_returns_user_with_valid_token(
         self, mock_auth_provider: JWTAuthProvider, test_token_user: TokenUser
-    ):
-        token = mock_auth_provider.create_token(test_token_user)
+    ) -> None:
+        token = str(mock_auth_provider.create_token(test_token_user))
         credentials = HTTPAuthorizationCredentials(scheme="Bearer", credentials=token)
 
         result = await get_optional_user(credentials, mock_auth_provider)
@@ -89,12 +89,16 @@ class TestGetOptionalUser:
         assert result.email == test_token_user.email
 
     @pytest.mark.asyncio
-    async def test_returns_none_when_no_credentials(self, mock_auth_provider: JWTAuthProvider):
+    async def test_returns_none_when_no_credentials(
+        self, mock_auth_provider: JWTAuthProvider
+    ) -> None:
         result = await get_optional_user(None, mock_auth_provider)
         assert result is None
 
     @pytest.mark.asyncio
-    async def test_returns_none_for_invalid_token(self, mock_auth_provider: JWTAuthProvider):
+    async def test_returns_none_for_invalid_token(
+        self, mock_auth_provider: JWTAuthProvider
+    ) -> None:
         credentials = HTTPAuthorizationCredentials(scheme="Bearer", credentials="invalid.jwt.token")
 
         result = await get_optional_user(credentials, mock_auth_provider)

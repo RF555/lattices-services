@@ -1,5 +1,6 @@
 """Unit tests for ActivityService."""
 
+from typing import Any
 from uuid import UUID, uuid4
 
 import pytest
@@ -28,7 +29,7 @@ class TestLog:
     @pytest.mark.asyncio
     async def test_creates_activity_entry(
         self, uow: FakeUnitOfWork, workspace_id: UUID, user_id: UUID
-    ):
+    ) -> None:
         service = ActivityService(lambda: uow)
         entity_id = uuid4()
         expected = ActivityLog(
@@ -55,11 +56,11 @@ class TestLog:
     @pytest.mark.asyncio
     async def test_passes_changes_and_metadata(
         self, uow: FakeUnitOfWork, workspace_id: UUID, user_id: UUID
-    ):
+    ) -> None:
         service = ActivityService(lambda: uow)
         entity_id = uuid4()
-        changes = {"title": {"old": "Old", "new": "New"}}
-        metadata = {"role": "admin"}
+        changes: dict[str, Any] = {"title": {"old": "Old", "new": "New"}}
+        metadata: dict[str, Any] = {"role": "admin"}
 
         uow.activities.create.return_value = ActivityLog(
             workspace_id=workspace_id,
@@ -99,7 +100,7 @@ class TestGetWorkspaceActivity:
         workspace: Workspace,
         workspace_id: UUID,
         user_id: UUID,
-    ):
+    ) -> None:
         uow.workspaces.get.return_value = workspace
         uow.workspaces.get_member.return_value = WorkspaceMember(
             workspace_id=workspace_id, user_id=user_id, role=WorkspaceRole.MEMBER
@@ -125,7 +126,7 @@ class TestGetWorkspaceActivity:
         uow: FakeUnitOfWork,
         workspace_id: UUID,
         user_id: UUID,
-    ):
+    ) -> None:
         uow.workspaces.get.return_value = None
 
         with pytest.raises(WorkspaceNotFoundError):
@@ -139,7 +140,7 @@ class TestGetWorkspaceActivity:
         workspace: Workspace,
         workspace_id: UUID,
         user_id: UUID,
-    ):
+    ) -> None:
         uow.workspaces.get.return_value = workspace
         uow.workspaces.get_member.return_value = None
 
@@ -154,7 +155,7 @@ class TestGetWorkspaceActivity:
         workspace: Workspace,
         workspace_id: UUID,
         user_id: UUID,
-    ):
+    ) -> None:
         uow.workspaces.get.return_value = workspace
         uow.workspaces.get_member.return_value = WorkspaceMember(
             workspace_id=workspace_id, user_id=user_id, role=WorkspaceRole.VIEWER
@@ -178,7 +179,7 @@ class TestGetEntityHistory:
         workspace: Workspace,
         workspace_id: UUID,
         user_id: UUID,
-    ):
+    ) -> None:
         entity_id = uuid4()
         uow.workspaces.get.return_value = workspace
         uow.workspaces.get_member.return_value = WorkspaceMember(
@@ -198,7 +199,7 @@ class TestGetEntityHistory:
         uow: FakeUnitOfWork,
         workspace_id: UUID,
         user_id: UUID,
-    ):
+    ) -> None:
         uow.workspaces.get.return_value = None
 
         with pytest.raises(WorkspaceNotFoundError):
@@ -212,7 +213,7 @@ class TestGetEntityHistory:
         workspace: Workspace,
         workspace_id: UUID,
         user_id: UUID,
-    ):
+    ) -> None:
         uow.workspaces.get.return_value = workspace
         uow.workspaces.get_member.return_value = None
 
@@ -224,7 +225,7 @@ class TestGetEntityHistory:
 
 
 class TestComputeDiff:
-    def test_detects_changed_fields(self):
+    def test_detects_changed_fields(self) -> None:
         old = {"name": "Old Name", "color": "blue"}
         new = {"name": "New Name", "color": "blue"}
 
@@ -235,7 +236,7 @@ class TestComputeDiff:
         assert diff["name"]["new"] == "New Name"
         assert "color" not in diff
 
-    def test_returns_empty_for_identical(self):
+    def test_returns_empty_for_identical(self) -> None:
         data = {"name": "Same", "color": "red"}
         diff = ActivityService.compute_diff(data, data)
         assert diff == {}

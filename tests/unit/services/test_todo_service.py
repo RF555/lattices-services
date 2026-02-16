@@ -1,5 +1,6 @@
 """Unit tests for Todo service layer."""
 
+from typing import Any
 from unittest.mock import AsyncMock
 from uuid import UUID, uuid4
 
@@ -45,7 +46,7 @@ class TestTodoServiceGetAll:
     @pytest.mark.asyncio
     async def test_returns_all_user_todos(
         self, service: TodoService, uow: FakeUnitOfWork, user_id: UUID
-    ):
+    ) -> None:
         """Test get_all_for_user returns all todos for user."""
         todos = [
             Todo(user_id=user_id, title="Task 1"),
@@ -67,7 +68,7 @@ class TestTodoServiceGetById:
         uow: FakeUnitOfWork,
         user_id: UUID,
         sample_todo: Todo,
-    ):
+    ) -> None:
         """Test get_by_id returns todo when found."""
         uow.todos.get.return_value = sample_todo
 
@@ -78,7 +79,7 @@ class TestTodoServiceGetById:
     @pytest.mark.asyncio
     async def test_raises_when_not_found(
         self, service: TodoService, uow: FakeUnitOfWork, user_id: UUID
-    ):
+    ) -> None:
         """Test get_by_id raises TodoNotFoundError when not found."""
         uow.todos.get.return_value = None
 
@@ -88,7 +89,7 @@ class TestTodoServiceGetById:
     @pytest.mark.asyncio
     async def test_raises_when_wrong_user(
         self, service: TodoService, uow: FakeUnitOfWork, sample_todo: Todo
-    ):
+    ) -> None:
         """Test get_by_id raises when todo belongs to different user."""
         uow.todos.get.return_value = sample_todo
 
@@ -100,7 +101,7 @@ class TestTodoServiceCreate:
     @pytest.mark.asyncio
     async def test_creates_root_todo(
         self, service: TodoService, uow: FakeUnitOfWork, user_id: UUID
-    ):
+    ) -> None:
         """Test creating a root-level todo."""
         expected = Todo(user_id=user_id, title="New Task")
         uow.todos.get_root_todos.return_value = []
@@ -118,7 +119,7 @@ class TestTodoServiceCreate:
         uow: FakeUnitOfWork,
         user_id: UUID,
         sample_todo: Todo,
-    ):
+    ) -> None:
         """Test creating a child todo."""
         parent = sample_todo
         uow.todos.get.return_value = parent
@@ -132,7 +133,7 @@ class TestTodoServiceCreate:
     @pytest.mark.asyncio
     async def test_create_with_invalid_parent_raises(
         self, service: TodoService, uow: FakeUnitOfWork, user_id: UUID
-    ):
+    ) -> None:
         """Test creating todo with non-existent parent raises error."""
         uow.todos.get.return_value = None
 
@@ -148,7 +149,7 @@ class TestTodoServiceUpdate:
         uow: FakeUnitOfWork,
         user_id: UUID,
         sample_todo: Todo,
-    ):
+    ) -> None:
         """Test updating todo title."""
         uow.todos.get.return_value = sample_todo
         uow.todos.update.return_value = sample_todo
@@ -165,7 +166,7 @@ class TestTodoServiceUpdate:
         uow: FakeUnitOfWork,
         user_id: UUID,
         sample_todo: Todo,
-    ):
+    ) -> None:
         """Test completing a todo."""
         uow.todos.get.return_value = sample_todo
         uow.todos.update.return_value = sample_todo
@@ -178,7 +179,7 @@ class TestTodoServiceUpdate:
     @pytest.mark.asyncio
     async def test_update_not_found_raises(
         self, service: TodoService, uow: FakeUnitOfWork, user_id: UUID
-    ):
+    ) -> None:
         """Test updating non-existent todo raises."""
         uow.todos.get.return_value = None
 
@@ -190,7 +191,7 @@ class TestTodoServiceChildCounts:
     @pytest.mark.asyncio
     async def test_returns_empty_dict_for_empty_input(
         self, service: TodoService, uow: FakeUnitOfWork
-    ):
+    ) -> None:
         """Empty list returns {} without touching repo."""
         result = await service.get_child_counts_batch([])
 
@@ -198,7 +199,7 @@ class TestTodoServiceChildCounts:
         uow.todos.get_child_counts_batch.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_delegates_to_repo(self, service: TodoService, uow: FakeUnitOfWork):
+    async def test_delegates_to_repo(self, service: TodoService, uow: FakeUnitOfWork) -> None:
         """Verifies delegation to uow.todos.get_child_counts_batch."""
         todo_id = uuid4()
         uow.todos.get_child_counts_batch.return_value = {
@@ -219,7 +220,7 @@ class TestTodoServiceDelete:
         uow: FakeUnitOfWork,
         user_id: UUID,
         sample_todo: Todo,
-    ):
+    ) -> None:
         """Test deleting a todo."""
         uow.todos.get.return_value = sample_todo
         uow.todos.delete.return_value = True
@@ -232,7 +233,7 @@ class TestTodoServiceDelete:
     @pytest.mark.asyncio
     async def test_delete_not_found_raises(
         self, service: TodoService, uow: FakeUnitOfWork, user_id: UUID
-    ):
+    ) -> None:
         """Test deleting non-existent todo raises."""
         uow.todos.get.return_value = None
 
@@ -246,7 +247,7 @@ class TestTodoServiceCycleDetection:
     @pytest.mark.asyncio
     async def test_detects_direct_cycle(
         self, service: TodoService, uow: FakeUnitOfWork, user_id: UUID
-    ):
+    ) -> None:
         """Moving a parent under its own child creates a direct cycle."""
         parent = Todo(user_id=user_id, title="Parent")
         child = Todo(user_id=user_id, title="Child", parent_id=parent.id)
@@ -254,7 +255,7 @@ class TestTodoServiceCycleDetection:
         # When checking if parent can become child of child:
         # get(child.id) -> child (has parent_id == parent.id)
         # get(parent.id) -> parent (parent_id matches todo_id => cycle)
-        def mock_get(todo_id):
+        def mock_get(todo_id: Any) -> Todo | None:
             if todo_id == child.id:
                 return child
             if todo_id == parent.id:
@@ -274,7 +275,7 @@ class TestTodoServiceCycleDetection:
         # Then for cycle detection: get(child.id) -> child, get(parent.id) -> cycle!
         call_count = 0
 
-        async def get_side_effect(tid):
+        async def get_side_effect(tid: Any) -> Todo | None:
             nonlocal call_count
             call_count += 1
             if tid == parent.id:
@@ -293,13 +294,13 @@ class TestTodoServiceCycleDetection:
     @pytest.mark.asyncio
     async def test_detects_indirect_cycle(
         self, service: TodoService, uow: FakeUnitOfWork, user_id: UUID
-    ):
+    ) -> None:
         """Moving A under C when C -> B -> A creates an indirect cycle."""
         a = Todo(user_id=user_id, title="A")
         b = Todo(user_id=user_id, title="B", parent_id=a.id)
         c = Todo(user_id=user_id, title="C", parent_id=b.id)
 
-        async def get_side_effect(tid):
+        async def get_side_effect(tid: Any) -> Todo | None:
             if tid == a.id:
                 return a
             if tid == b.id:
@@ -319,12 +320,12 @@ class TestTodoServiceCycleDetection:
     @pytest.mark.asyncio
     async def test_no_cycle_for_valid_move(
         self, service: TodoService, uow: FakeUnitOfWork, user_id: UUID
-    ):
+    ) -> None:
         """Moving a todo to a non-descendant does not raise."""
         a = Todo(user_id=user_id, title="A")
         b = Todo(user_id=user_id, title="B")  # no parent relationship with A
 
-        async def get_side_effect(tid):
+        async def get_side_effect(tid: Any) -> Todo | None:
             if tid == a.id:
                 return a
             if tid == b.id:
@@ -341,7 +342,7 @@ class TestTodoServiceCycleDetection:
     @pytest.mark.asyncio
     async def test_update_rejects_self_as_parent(
         self, service: TodoService, uow: FakeUnitOfWork, user_id: UUID
-    ):
+    ) -> None:
         """Setting a todo as its own parent is rejected."""
         todo = Todo(user_id=user_id, title="Self")
 
@@ -386,23 +387,21 @@ class TestTodoServiceWorkspaceScoped:
         )
 
     @pytest.fixture
-    def activity_service(self) -> ActivityService:
+    def activity_service(self) -> AsyncMock:
         """A mock ActivityService whose .log() is an AsyncMock."""
-        svc = AsyncMock(spec=ActivityService)
-        return svc
+        return AsyncMock(spec=ActivityService)
 
     @pytest.fixture
-    def notification_service(self) -> NotificationService:
+    def notification_service(self) -> AsyncMock:
         """A mock NotificationService whose .notify() is an AsyncMock."""
-        svc = AsyncMock(spec=NotificationService)
-        return svc
+        return AsyncMock(spec=NotificationService)
 
     @pytest.fixture
     def ws_service(
         self,
         uow: FakeUnitOfWork,
-        activity_service: ActivityService,
-        notification_service: NotificationService,
+        activity_service: AsyncMock,
+        notification_service: AsyncMock,
     ) -> TodoService:
         """TodoService wired with activity + notification services."""
         return TodoService(
@@ -414,7 +413,7 @@ class TestTodoServiceWorkspaceScoped:
     # -- Existing test (create not-a-member) ---------------------------------
 
     @pytest.mark.asyncio
-    async def test_create_requires_member_role(self, uow: FakeUnitOfWork, user_id: UUID):
+    async def test_create_requires_member_role(self, uow: FakeUnitOfWork, user_id: UUID) -> None:
         """Creating a workspace todo requires MEMBER+ role."""
         service = TodoService(lambda: uow)
         workspace_id = uuid4()
@@ -438,7 +437,7 @@ class TestTodoServiceWorkspaceScoped:
         user_id: UUID,
         ws_id: UUID,
         member: WorkspaceMember,
-    ):
+    ) -> None:
         """get_all_for_user with workspace_id returns workspace todos after membership check."""
         service = TodoService(lambda: uow)
         uow.workspaces.get_member.return_value = member
@@ -454,7 +453,7 @@ class TestTodoServiceWorkspaceScoped:
     @pytest.mark.asyncio
     async def test_get_all_should_raise_when_not_a_member(
         self, uow: FakeUnitOfWork, user_id: UUID, ws_id: UUID
-    ):
+    ) -> None:
         """get_all_for_user raises NotAMemberError when user is not in workspace."""
         service = TodoService(lambda: uow)
         uow.workspaces.get_member.return_value = None
@@ -472,7 +471,7 @@ class TestTodoServiceWorkspaceScoped:
         ws_id: UUID,
         member: WorkspaceMember,
         ws_todo: Todo,
-    ):
+    ) -> None:
         """get_by_id with workspace_id succeeds when user is a member."""
         service = TodoService(lambda: uow)
         uow.todos.get.return_value = ws_todo
@@ -489,7 +488,7 @@ class TestTodoServiceWorkspaceScoped:
         user_id: UUID,
         ws_id: UUID,
         member: WorkspaceMember,
-    ):
+    ) -> None:
         """get_by_id raises TodoNotFoundError when todo.workspace_id != requested workspace_id."""
         service = TodoService(lambda: uow)
         different_ws = uuid4()
@@ -506,7 +505,7 @@ class TestTodoServiceWorkspaceScoped:
         uow: FakeUnitOfWork,
         user_id: UUID,
         ws_id: UUID,
-    ):
+    ) -> None:
         """get_by_id without explicit workspace_id still checks membership for workspace todos."""
         service = TodoService(lambda: uow)
         ws_todo = Todo(user_id=uuid4(), workspace_id=ws_id, title="WS Todo")
@@ -527,9 +526,9 @@ class TestTodoServiceWorkspaceScoped:
         user_id: UUID,
         ws_id: UUID,
         member: WorkspaceMember,
-        activity_service: ActivityService,
-        notification_service: NotificationService,
-    ):
+        activity_service: AsyncMock,
+        notification_service: AsyncMock,
+    ) -> None:
         """Creating a workspace todo logs activity and sends notifications."""
         uow.workspaces.get_member.return_value = member
         uow.todos.get_root_todos.return_value = []
@@ -554,19 +553,21 @@ class TestTodoServiceWorkspaceScoped:
         # Activity was logged
         activity_service.log.assert_called_once()
         log_call = activity_service.log.call_args
+        assert log_call is not None
         assert log_call.kwargs["action"] == Actions.TODO_CREATED
         assert log_call.kwargs["workspace_id"] == ws_id
 
         # Notification was sent
         notification_service.notify.assert_called_once()
         notif_call = notification_service.notify.call_args
+        assert notif_call is not None
         assert notif_call.kwargs["type_name"] == NotificationTypes.TASK_CREATED
         assert set(notif_call.kwargs["recipient_ids"]) == {member.user_id, other_member.user_id}
 
     @pytest.mark.asyncio
     async def test_create_should_reject_parent_in_different_workspace(
         self, uow: FakeUnitOfWork, user_id: UUID, ws_id: UUID, member: WorkspaceMember
-    ):
+    ) -> None:
         """Creating a child todo rejects a parent from a different workspace."""
         service = TodoService(lambda: uow)
         uow.workspaces.get_member.return_value = member
@@ -593,9 +594,9 @@ class TestTodoServiceWorkspaceScoped:
         ws_id: UUID,
         ws_todo: Todo,
         member: WorkspaceMember,
-        activity_service: ActivityService,
-        notification_service: NotificationService,
-    ):
+        activity_service: AsyncMock,
+        notification_service: AsyncMock,
+    ) -> None:
         """Updating a workspace todo verifies membership and logs activity diff."""
         uow.todos.get.return_value = ws_todo
         uow.workspaces.get_member.return_value = member
@@ -619,13 +620,17 @@ class TestTodoServiceWorkspaceScoped:
 
         # Activity logged with TODO_UPDATED action (title changed)
         activity_service.log.assert_called_once()
-        log_kw = activity_service.log.call_args.kwargs
+        log_call = activity_service.log.call_args
+        assert log_call is not None
+        log_kw = log_call.kwargs
         assert log_kw["action"] == Actions.TODO_UPDATED
         assert "title" in log_kw["changes"]
 
         # Notification sent
         notification_service.notify.assert_called_once()
-        notif_kw = notification_service.notify.call_args.kwargs
+        notif_call = notification_service.notify.call_args
+        assert notif_call is not None
+        notif_kw = notif_call.kwargs
         assert notif_kw["type_name"] == NotificationTypes.TASK_UPDATED
 
     @pytest.mark.asyncio
@@ -637,9 +642,9 @@ class TestTodoServiceWorkspaceScoped:
         ws_id: UUID,
         ws_todo: Todo,
         member: WorkspaceMember,
-        activity_service: ActivityService,
-        notification_service: NotificationService,
-    ):
+        activity_service: AsyncMock,
+        notification_service: AsyncMock,
+    ) -> None:
         """Completing a workspace todo logs activity and notification."""
         uow.todos.get.return_value = ws_todo
         uow.workspaces.get_member.return_value = member
@@ -657,17 +662,21 @@ class TestTodoServiceWorkspaceScoped:
         await ws_service.update(todo_id=ws_todo.id, user_id=user_id, is_completed=True)
 
         # Activity action should be TODO_COMPLETED
-        log_kw = activity_service.log.call_args.kwargs
+        log_call = activity_service.log.call_args
+        assert log_call is not None
+        log_kw = log_call.kwargs
         assert log_kw["action"] == Actions.TODO_COMPLETED
 
         # Notification type should be TASK_COMPLETED
-        notif_kw = notification_service.notify.call_args.kwargs
+        notif_call = notification_service.notify.call_args
+        assert notif_call is not None
+        notif_kw = notif_call.kwargs
         assert notif_kw["type_name"] == NotificationTypes.TASK_COMPLETED
 
     @pytest.mark.asyncio
     async def test_update_should_raise_when_viewer_tries_to_edit(
         self, uow: FakeUnitOfWork, user_id: UUID, ws_id: UUID, viewer: WorkspaceMember
-    ):
+    ) -> None:
         """Viewer cannot update workspace todos (requires MEMBER+)."""
         service = TodoService(lambda: uow)
         ws_todo = Todo(user_id=user_id, workspace_id=ws_id, title="WS Task")
@@ -688,9 +697,9 @@ class TestTodoServiceWorkspaceScoped:
         ws_id: UUID,
         ws_todo: Todo,
         member: WorkspaceMember,
-        activity_service: ActivityService,
-        notification_service: NotificationService,
-    ):
+        activity_service: AsyncMock,
+        notification_service: AsyncMock,
+    ) -> None:
         """Deleting a workspace todo logs activity and notifies before deletion."""
         uow.todos.get.return_value = ws_todo
         uow.workspaces.get_member.return_value = member
@@ -707,19 +716,23 @@ class TestTodoServiceWorkspaceScoped:
 
         # Activity logged with TODO_DELETED
         activity_service.log.assert_called_once()
-        log_kw = activity_service.log.call_args.kwargs
+        log_call = activity_service.log.call_args
+        assert log_call is not None
+        log_kw = log_call.kwargs
         assert log_kw["action"] == Actions.TODO_DELETED
         assert log_kw["metadata"]["title"] == ws_todo.title
 
         # Notification sent with TASK_DELETED
         notification_service.notify.assert_called_once()
-        notif_kw = notification_service.notify.call_args.kwargs
+        notif_call = notification_service.notify.call_args
+        assert notif_call is not None
+        notif_kw = notif_call.kwargs
         assert notif_kw["type_name"] == NotificationTypes.TASK_DELETED
 
     @pytest.mark.asyncio
     async def test_delete_should_raise_when_not_a_member(
         self, uow: FakeUnitOfWork, user_id: UUID, ws_id: UUID
-    ):
+    ) -> None:
         """Deleting a workspace todo raises NotAMemberError if not a member."""
         service = TodoService(lambda: uow)
         ws_todo = Todo(user_id=uuid4(), workspace_id=ws_id, title="WS Task")
@@ -732,7 +745,7 @@ class TestTodoServiceWorkspaceScoped:
     @pytest.mark.asyncio
     async def test_delete_should_raise_when_wrong_user_on_personal_todo(
         self, uow: FakeUnitOfWork, user_id: UUID
-    ):
+    ) -> None:
         """Deleting a personal todo owned by another user raises TodoNotFoundError."""
         service = TodoService(lambda: uow)
         other_user_todo = Todo(user_id=uuid4(), title="Someone elses")
@@ -789,19 +802,19 @@ class TestTodoServiceMoveWorkspace:
         )
 
     @pytest.fixture
-    def activity_service(self) -> ActivityService:
+    def activity_service(self) -> AsyncMock:
         return AsyncMock(spec=ActivityService)
 
     @pytest.fixture
-    def notification_service(self) -> NotificationService:
+    def notification_service(self) -> AsyncMock:
         return AsyncMock(spec=NotificationService)
 
     @pytest.fixture
     def move_service(
         self,
         uow: FakeUnitOfWork,
-        activity_service: ActivityService,
-        notification_service: NotificationService,
+        activity_service: AsyncMock,
+        notification_service: AsyncMock,
     ) -> TodoService:
         return TodoService(
             lambda: uow,
@@ -822,11 +835,11 @@ class TestTodoServiceMoveWorkspace:
         source_member: WorkspaceMember,
         target_member: WorkspaceMember,
         ws_todo: Todo,
-    ):
+    ) -> None:
         """Moving a todo between workspaces updates workspace_id and commits."""
         uow.todos.get.return_value = ws_todo
 
-        def get_member_side_effect(ws_id, uid):
+        def get_member_side_effect(ws_id: Any, uid: Any) -> WorkspaceMember | None:
             if ws_id == source_ws_id:
                 return source_member
             if ws_id == target_ws_id:
@@ -857,7 +870,7 @@ class TestTodoServiceMoveWorkspace:
         target_ws_id: UUID,
         source_member: WorkspaceMember,
         target_member: WorkspaceMember,
-    ):
+    ) -> None:
         """Moving a child todo detaches it from its parent."""
         parent = Todo(id=uuid4(), user_id=user_id, workspace_id=source_ws_id, title="Parent")
         child = Todo(
@@ -869,7 +882,7 @@ class TestTodoServiceMoveWorkspace:
         )
         uow.todos.get.return_value = child
 
-        def get_member_side_effect(ws_id, uid):
+        def get_member_side_effect(ws_id: Any, uid: Any) -> WorkspaceMember | None:
             if ws_id == source_ws_id:
                 return source_member
             if ws_id == target_ws_id:
@@ -897,10 +910,10 @@ class TestTodoServiceMoveWorkspace:
         target_member: WorkspaceMember,
         ws_todo: Todo,
         child_todo: Todo,
-    ):
+    ) -> None:
         """Moving a todo strips tags from itself and all descendants."""
 
-        def get_member_side_effect(ws_id, uid):
+        def get_member_side_effect(ws_id: Any, uid: Any) -> WorkspaceMember | None:
             if ws_id == source_ws_id:
                 return source_member
             if ws_id == target_ws_id:
@@ -931,10 +944,10 @@ class TestTodoServiceMoveWorkspace:
         target_member: WorkspaceMember,
         ws_todo: Todo,
         child_todo: Todo,
-    ):
+    ) -> None:
         """All descendants get the target workspace_id."""
 
-        def get_member_side_effect(ws_id, uid):
+        def get_member_side_effect(ws_id: Any, uid: Any) -> WorkspaceMember | None:
             if ws_id == source_ws_id:
                 return source_member
             if ws_id == target_ws_id:
@@ -958,7 +971,7 @@ class TestTodoServiceMoveWorkspace:
     @pytest.mark.asyncio
     async def test_move_requires_member_in_source_workspace(
         self, uow: FakeUnitOfWork, user_id: UUID, source_ws_id: UUID, ws_todo: Todo
-    ):
+    ) -> None:
         """Moving from a workspace requires MEMBER+ in source."""
         uow.todos.get.return_value = ws_todo
         uow.workspaces.get_member.return_value = None  # not a member
@@ -976,10 +989,10 @@ class TestTodoServiceMoveWorkspace:
         target_ws_id: UUID,
         source_member: WorkspaceMember,
         ws_todo: Todo,
-    ):
+    ) -> None:
         """Moving to a workspace requires MEMBER+ in target."""
 
-        def get_member_side_effect(ws_id, uid):
+        def get_member_side_effect(ws_id: Any, uid: Any) -> WorkspaceMember | None:
             if ws_id == source_ws_id:
                 return source_member
             return None  # not a member in target
@@ -998,7 +1011,7 @@ class TestTodoServiceMoveWorkspace:
         user_id: UUID,
         target_ws_id: UUID,
         target_member: WorkspaceMember,
-    ):
+    ) -> None:
         """Moving a personal todo into a workspace works for the owner."""
         personal_todo = Todo(id=uuid4(), user_id=user_id, title="Personal Task")
         uow.todos.get.return_value = personal_todo
@@ -1020,7 +1033,7 @@ class TestTodoServiceMoveWorkspace:
         source_ws_id: UUID,
         source_member: WorkspaceMember,
         ws_todo: Todo,
-    ):
+    ) -> None:
         """Moving a workspace todo to personal works for the creator."""
         uow.todos.get.return_value = ws_todo
         uow.workspaces.get_member.return_value = source_member
@@ -1040,7 +1053,7 @@ class TestTodoServiceMoveWorkspace:
         user_id: UUID,
         source_ws_id: UUID,
         source_member: WorkspaceMember,
-    ):
+    ) -> None:
         """Only the todo creator can move it to personal."""
         other_user_id = uuid4()
         ws_todo = Todo(
@@ -1066,7 +1079,7 @@ class TestTodoServiceMoveWorkspace:
         source_ws_id: UUID,
         source_member: WorkspaceMember,
         ws_todo: Todo,
-    ):
+    ) -> None:
         """Moving to the same workspace is a no-op."""
         uow.todos.get.return_value = ws_todo
         uow.workspaces.get_member.return_value = source_member
@@ -1091,11 +1104,11 @@ class TestTodoServiceMoveWorkspace:
         source_member: WorkspaceMember,
         target_member: WorkspaceMember,
         ws_todo: Todo,
-        activity_service: ActivityService,
-    ):
+        activity_service: AsyncMock,
+    ) -> None:
         """Activity logged in both source (moved_out) and target (moved_in) workspaces."""
 
-        def get_member_side_effect(ws_id, uid):
+        def get_member_side_effect(ws_id: Any, uid: Any) -> WorkspaceMember | None:
             if ws_id == source_ws_id:
                 return source_member
             if ws_id == target_ws_id:
@@ -1130,11 +1143,11 @@ class TestTodoServiceMoveWorkspace:
         source_member: WorkspaceMember,
         target_member: WorkspaceMember,
         ws_todo: Todo,
-        notification_service: NotificationService,
-    ):
+        notification_service: AsyncMock,
+    ) -> None:
         """Notifications sent to members of both source and target workspaces."""
 
-        def get_member_side_effect(ws_id, uid):
+        def get_member_side_effect(ws_id: Any, uid: Any) -> WorkspaceMember | None:
             if ws_id == source_ws_id:
                 return source_member
             if ws_id == target_ws_id:

@@ -151,6 +151,7 @@ Permission checks use `user_role >= required_role` for hierarchical enforcement.
 - **Python 3.11** or higher
 - **PostgreSQL 14+** (for production) or SQLite (for testing)
 - **Git**
+- **[Just](https://just.systems/)** (task runner) -- install via `winget install Casey.Just`
 
 ---
 
@@ -597,7 +598,7 @@ ruff check src/ tests/ --fix    # Auto-fix lint errors
 ruff format src/ tests/         # Format code
 
 # Type checking
-mypy src/
+mypy src/ tests/
 
 # Pre-commit hooks
 pre-commit run --all-files

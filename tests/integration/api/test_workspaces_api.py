@@ -1,10 +1,11 @@
 """Integration tests for Workspaces API."""
 
+from collections.abc import AsyncGenerator
 from uuid import uuid4
 
 import pytest
 from httpx import ASGITransport, AsyncClient
-from sqlalchemy.ext.asyncio import async_sessionmaker
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from infrastructure.auth.jwt_provider import JWTAuthProvider
 from infrastructure.auth.provider import TokenUser
@@ -13,10 +14,10 @@ from infrastructure.database.models import ProfileModel
 
 @pytest.fixture
 async def workspace_client(
-    session_factory: async_sessionmaker,
+    session_factory: async_sessionmaker[AsyncSession],
     test_user: TokenUser,
     auth_provider: JWTAuthProvider,
-):
+) -> AsyncGenerator[AsyncClient, None]:
     """Create a test client with all workspace-related services wired up."""
     from api.dependencies.auth import get_auth_provider, get_current_user, get_workspace_service_dep
     from api.v1.dependencies import (
@@ -53,13 +54,13 @@ async def workspace_client(
             session.add(profile)
             await session.commit()
 
-    async def override_get_user():
+    async def override_get_user() -> TokenUser:
         return test_user
 
-    def override_get_auth_provider():
+    def override_get_auth_provider() -> JWTAuthProvider:
         return auth_provider
 
-    def test_uow_factory():
+    def test_uow_factory() -> SQLAlchemyUnitOfWork:
         return SQLAlchemyUnitOfWork(session_factory)
 
     activity_service = ActivityService(test_uow_factory)
@@ -94,7 +95,7 @@ class TestWorkspaceCRUD:
     """Tests for workspace create, read, update, delete."""
 
     @pytest.mark.asyncio
-    async def test_create_workspace(self, workspace_client: AsyncClient):
+    async def test_create_workspace(self, workspace_client: AsyncClient) -> None:
         """POST /api/v1/workspaces returns 201 with workspace data."""
         name = _unique_name("Create WS")
         response = await workspace_client.post(
@@ -109,7 +110,7 @@ class TestWorkspaceCRUD:
         assert data["slug"]  # slug is generated
 
     @pytest.mark.asyncio
-    async def test_list_workspaces(self, workspace_client: AsyncClient):
+    async def test_list_workspaces(self, workspace_client: AsyncClient) -> None:
         """GET /api/v1/workspaces returns list of user's workspaces."""
         await workspace_client.post("/api/v1/workspaces", json={"name": _unique_name("List WS")})
 
@@ -119,7 +120,7 @@ class TestWorkspaceCRUD:
         assert len(response.json()["data"]) >= 1
 
     @pytest.mark.asyncio
-    async def test_get_workspace(self, workspace_client: AsyncClient):
+    async def test_get_workspace(self, workspace_client: AsyncClient) -> None:
         """GET /api/v1/workspaces/{id} returns workspace details."""
         create = await workspace_client.post(
             "/api/v1/workspaces", json={"name": _unique_name("Get WS")}
@@ -132,14 +133,14 @@ class TestWorkspaceCRUD:
         assert response.json()["data"]["id"] == ws_id
 
     @pytest.mark.asyncio
-    async def test_get_workspace_not_found(self, workspace_client: AsyncClient):
+    async def test_get_workspace_not_found(self, workspace_client: AsyncClient) -> None:
         """GET /api/v1/workspaces/{id} returns 404 for unknown workspace."""
         response = await workspace_client.get(f"/api/v1/workspaces/{uuid4()}")
 
         assert response.status_code == 404
 
     @pytest.mark.asyncio
-    async def test_update_workspace(self, workspace_client: AsyncClient):
+    async def test_update_workspace(self, workspace_client: AsyncClient) -> None:
         """PATCH /api/v1/workspaces/{id} updates workspace."""
         create = await workspace_client.post(
             "/api/v1/workspaces", json={"name": _unique_name("Update WS")}
@@ -156,7 +157,7 @@ class TestWorkspaceCRUD:
         assert response.json()["data"]["name"] == new_name
 
     @pytest.mark.asyncio
-    async def test_delete_workspace(self, workspace_client: AsyncClient):
+    async def test_delete_workspace(self, workspace_client: AsyncClient) -> None:
         """DELETE /api/v1/workspaces/{id} returns 204."""
         create = await workspace_client.post(
             "/api/v1/workspaces", json={"name": _unique_name("Delete WS")}
@@ -176,7 +177,7 @@ class TestWorkspaceMembers:
     """Tests for workspace member management."""
 
     @pytest.mark.asyncio
-    async def test_list_members(self, workspace_client: AsyncClient):
+    async def test_list_members(self, workspace_client: AsyncClient) -> None:
         """GET /api/v1/workspaces/{id}/members includes the owner."""
         create = await workspace_client.post(
             "/api/v1/workspaces", json={"name": _unique_name("Members WS")}
@@ -193,8 +194,8 @@ class TestWorkspaceMembers:
 
     @pytest.mark.asyncio
     async def test_add_member(
-        self, workspace_client: AsyncClient, session_factory: async_sessionmaker
-    ):
+        self, workspace_client: AsyncClient, session_factory: async_sessionmaker[AsyncSession]
+    ) -> None:
         """POST /api/v1/workspaces/{id}/members adds a new member."""
         second_user_id = uuid4()
         async with session_factory() as session:
@@ -221,8 +222,8 @@ class TestWorkspaceMembers:
 
     @pytest.mark.asyncio
     async def test_add_member_duplicate(
-        self, workspace_client: AsyncClient, session_factory: async_sessionmaker
-    ):
+        self, workspace_client: AsyncClient, session_factory: async_sessionmaker[AsyncSession]
+    ) -> None:
         """POST /api/v1/workspaces/{id}/members returns 409 for duplicate."""
         dup_user_id = uuid4()
         async with session_factory() as session:
@@ -259,8 +260,8 @@ class TestWorkspaceOwnership:
     async def test_transfer_ownership(
         self,
         workspace_client: AsyncClient,
-        session_factory: async_sessionmaker,
-    ):
+        session_factory: async_sessionmaker[AsyncSession],
+    ) -> None:
         """POST /api/v1/workspaces/{id}/transfer-ownership succeeds for owner."""
         target_id = uuid4()
         async with session_factory() as session:
@@ -296,9 +297,9 @@ class TestAutoProvisionPersonalWorkspace:
     @pytest.mark.asyncio
     async def test_auto_creates_personal_workspace_for_new_user(
         self,
-        session_factory: async_sessionmaker,
+        session_factory: async_sessionmaker[AsyncSession],
         auth_provider: JWTAuthProvider,
-    ):
+    ) -> None:
         """GET /api/v1/workspaces for a fresh user auto-creates a Personal workspace."""
         from api.dependencies.auth import (
             get_auth_provider,
@@ -341,10 +342,10 @@ class TestAutoProvisionPersonalWorkspace:
 
         app = create_app()
 
-        async def override_get_user():
+        async def override_get_user() -> TokenUser:
             return fresh_user
 
-        def test_uow_factory():
+        def test_uow_factory() -> SQLAlchemyUnitOfWork:
             return SQLAlchemyUnitOfWork(session_factory)
 
         activity_service = ActivityService(test_uow_factory)
@@ -389,9 +390,9 @@ class TestLastWorkspaceGuard:
     @pytest.mark.asyncio
     async def test_delete_last_workspace_returns_400(
         self,
-        session_factory: async_sessionmaker,
+        session_factory: async_sessionmaker[AsyncSession],
         auth_provider: JWTAuthProvider,
-    ):
+    ) -> None:
         """DELETE /api/v1/workspaces/{id} returns 400 when it's the user's only workspace."""
         from api.dependencies.auth import (
             get_auth_provider,
@@ -431,10 +432,10 @@ class TestLastWorkspaceGuard:
 
         app = create_app()
 
-        async def override_get_user():
+        async def override_get_user() -> TokenUser:
             return fresh_user
 
-        def test_uow_factory():
+        def test_uow_factory() -> SQLAlchemyUnitOfWork:
             return SQLAlchemyUnitOfWork(session_factory)
 
         activity_service = ActivityService(test_uow_factory)
@@ -472,9 +473,9 @@ class TestLastWorkspaceGuard:
     @pytest.mark.asyncio
     async def test_leave_last_workspace_returns_400(
         self,
-        session_factory: async_sessionmaker,
+        session_factory: async_sessionmaker[AsyncSession],
         auth_provider: JWTAuthProvider,
-    ):
+    ) -> None:
         """DELETE /api/v1/workspaces/{id}/members/{self} returns 400 when last workspace."""
         from api.dependencies.auth import (
             get_auth_provider,
@@ -514,10 +515,10 @@ class TestLastWorkspaceGuard:
 
         app = create_app()
 
-        async def override_get_user():
+        async def override_get_user() -> TokenUser:
             return fresh_user
 
-        def test_uow_factory():
+        def test_uow_factory() -> SQLAlchemyUnitOfWork:
             return SQLAlchemyUnitOfWork(session_factory)
 
         activity_service = ActivityService(test_uow_factory)

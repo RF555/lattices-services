@@ -3,8 +3,9 @@
 import asyncio
 import os
 import sys
-from collections.abc import AsyncGenerator
+from collections.abc import AsyncGenerator, Generator
 from pathlib import Path
+from typing import Any
 from uuid import uuid4
 
 # Disable rate limiting in tests
@@ -13,7 +14,12 @@ os.environ["RATE_LIMIT_ENABLED"] = "false"
 import pytest
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.dialects.postgresql import JSONB
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.ext.asyncio import (
+    AsyncEngine,
+    AsyncSession,
+    async_sessionmaker,
+    create_async_engine,
+)
 from sqlalchemy.ext.compiler import compiles
 
 # Add src to path
@@ -25,8 +31,8 @@ from infrastructure.database.models import Base, ProfileModel
 
 
 # Compile JSONB as JSON for SQLite (used in tests)
-@compiles(JSONB, "sqlite")  # type: ignore[no-untyped-call]
-def _compile_jsonb_sqlite(type_, compiler, **kw):
+@compiles(JSONB, "sqlite")
+def _compile_jsonb_sqlite(type_: Any, compiler: Any, **kw: Any) -> str:
     return "JSON"
 
 
@@ -38,7 +44,7 @@ TEST_USER_ID = uuid4()
 
 
 @pytest.fixture(scope="session")
-def event_loop():
+def event_loop() -> Generator[asyncio.AbstractEventLoop, None, None]:
     """Create event loop for session-scoped async fixtures."""
     policy = asyncio.get_event_loop_policy()
     loop = policy.new_event_loop()
@@ -47,7 +53,7 @@ def event_loop():
 
 
 @pytest.fixture(scope="session")
-async def engine():
+async def engine() -> AsyncGenerator[AsyncEngine, None]:
     """Create test database engine."""
     engine = create_async_engine(
         TEST_DATABASE_URL,
@@ -58,7 +64,7 @@ async def engine():
 
 
 @pytest.fixture(scope="session")
-async def setup_database(engine):
+async def setup_database(engine: AsyncEngine) -> AsyncGenerator[None, None]:
     """Create all tables once per session."""
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
@@ -68,7 +74,9 @@ async def setup_database(engine):
 
 
 @pytest.fixture(scope="session")
-async def session_factory(engine, setup_database):
+async def session_factory(
+    engine: AsyncEngine, setup_database: None
+) -> AsyncGenerator[async_sessionmaker[AsyncSession], None]:
     """Create session factory."""
     factory = async_sessionmaker(
         bind=engine,
@@ -79,7 +87,9 @@ async def session_factory(engine, setup_database):
 
 
 @pytest.fixture
-async def db_session(session_factory) -> AsyncGenerator[AsyncSession, None]:
+async def db_session(
+    session_factory: async_sessionmaker[AsyncSession],
+) -> AsyncGenerator[AsyncSession, None]:
     """Create a fresh database session for each test."""
     async with session_factory() as session:
         yield session
@@ -109,11 +119,11 @@ def auth_provider() -> JWTAuthProvider:
 @pytest.fixture
 def auth_token(auth_provider: JWTAuthProvider, test_user: TokenUser) -> str:
     """Create auth token for test user."""
-    return auth_provider.create_token(test_user)
+    return str(auth_provider.create_token(test_user))
 
 
 @pytest.fixture
-def auth_headers(auth_token: str) -> dict:
+def auth_headers(auth_token: str) -> dict[str, str]:
     """Create authorization headers."""
     return {"Authorization": f"Bearer {auth_token}"}
 
@@ -130,7 +140,9 @@ async def client() -> AsyncGenerator[AsyncClient, None]:
 
 @pytest.fixture
 async def authenticated_client(
-    session_factory, test_user: TokenUser, auth_provider: JWTAuthProvider
+    session_factory: async_sessionmaker[AsyncSession],
+    test_user: TokenUser,
+    auth_provider: JWTAuthProvider,
 ) -> AsyncGenerator[AsyncClient, None]:
     """
     Create authenticated test client with proper database and auth overrides.
@@ -168,23 +180,23 @@ async def authenticated_client(
             await session.commit()
 
     # Override auth to return test user directly
-    async def override_get_user():
+    async def override_get_user() -> TokenUser:
         return test_user
 
-    def override_get_auth_provider():
+    def override_get_auth_provider() -> JWTAuthProvider:
         return auth_provider
 
     # Create a UoW factory that uses test session
-    def test_uow_factory():
+    def test_uow_factory() -> SQLAlchemyUnitOfWork:
         return SQLAlchemyUnitOfWork(session_factory)
 
-    def override_get_todo_service():
+    def override_get_todo_service() -> TodoService:
         return TodoService(test_uow_factory)
 
-    def override_get_tag_service():
+    def override_get_tag_service() -> TagService:
         return TagService(test_uow_factory)
 
-    def override_get_workspace_service_dep():
+    def override_get_workspace_service_dep() -> WorkspaceService:
         return WorkspaceService(test_uow_factory)
 
     app.dependency_overrides[get_current_user] = override_get_user

@@ -2,6 +2,7 @@
 
 import hashlib
 from datetime import datetime, timedelta
+from typing import Any
 from uuid import UUID, uuid4
 
 import pytest
@@ -50,13 +51,13 @@ class TestCreateInvitation:
         admin_member: WorkspaceMember,
         workspace_id: UUID,
         user_id: UUID,
-    ):
+    ) -> None:
         uow.workspaces.get.return_value = workspace
         uow.workspaces.get_member.return_value = admin_member
         uow.invitations.get_pending_for_workspace_email.return_value = None
         uow.workspaces.get_members.return_value = []
 
-        async def capture_create(inv):
+        async def capture_create(inv: Any) -> Any:
             return inv
 
         uow.invitations.create.side_effect = capture_create
@@ -80,7 +81,7 @@ class TestCreateInvitation:
         admin_member: WorkspaceMember,
         workspace_id: UUID,
         user_id: UUID,
-    ):
+    ) -> None:
         uow.workspaces.get.return_value = workspace
         uow.workspaces.get_member.return_value = admin_member
         uow.invitations.get_pending_for_workspace_email.return_value = None
@@ -88,7 +89,7 @@ class TestCreateInvitation:
 
         captured = None
 
-        async def capture_create(inv):
+        async def capture_create(inv: Any) -> Any:
             nonlocal captured
             captured = inv
             return inv
@@ -100,6 +101,7 @@ class TestCreateInvitation:
         )
 
         expected_hash = hashlib.sha256(raw_token.encode()).hexdigest()
+        assert captured is not None
         assert captured.token_hash == expected_hash
 
     @pytest.mark.asyncio
@@ -109,7 +111,7 @@ class TestCreateInvitation:
         uow: FakeUnitOfWork,
         workspace_id: UUID,
         user_id: UUID,
-    ):
+    ) -> None:
         uow.workspaces.get.return_value = None
 
         with pytest.raises(WorkspaceNotFoundError):
@@ -125,7 +127,7 @@ class TestCreateInvitation:
         workspace: Workspace,
         workspace_id: UUID,
         user_id: UUID,
-    ):
+    ) -> None:
         uow.workspaces.get.return_value = workspace
         uow.workspaces.get_member.return_value = WorkspaceMember(
             workspace_id=workspace_id, user_id=user_id, role=WorkspaceRole.MEMBER
@@ -145,7 +147,7 @@ class TestCreateInvitation:
         admin_member: WorkspaceMember,
         workspace_id: UUID,
         user_id: UUID,
-    ):
+    ) -> None:
         existing = Invitation(
             workspace_id=workspace_id,
             email="dup@example.com",
@@ -174,7 +176,7 @@ class TestAcceptInvitation:
         uow: FakeUnitOfWork,
         workspace_id: UUID,
         user_id: UUID,
-    ):
+    ) -> None:
         raw_token = "valid_token_123"
         token_hash = hashlib.sha256(raw_token.encode()).hexdigest()
         inviter_id = uuid4()
@@ -210,7 +212,7 @@ class TestAcceptInvitation:
     @pytest.mark.asyncio
     async def test_raises_not_found_for_bad_token(
         self, service: InvitationService, uow: FakeUnitOfWork, user_id: UUID
-    ):
+    ) -> None:
         uow.invitations.get_by_token_hash.return_value = None
 
         with pytest.raises(InvitationNotFoundError):
@@ -225,7 +227,7 @@ class TestAcceptInvitation:
         uow: FakeUnitOfWork,
         workspace_id: UUID,
         user_id: UUID,
-    ):
+    ) -> None:
         raw_token = "tok"
         token_hash = hashlib.sha256(raw_token.encode()).hexdigest()
         invitation = Invitation(
@@ -250,7 +252,7 @@ class TestAcceptInvitation:
         uow: FakeUnitOfWork,
         workspace_id: UUID,
         user_id: UUID,
-    ):
+    ) -> None:
         raw_token = "tok"
         token_hash = hashlib.sha256(raw_token.encode()).hexdigest()
         invitation = Invitation(
@@ -280,7 +282,7 @@ class TestAcceptInvitation:
         uow: FakeUnitOfWork,
         workspace_id: UUID,
         user_id: UUID,
-    ):
+    ) -> None:
         raw_token = "tok"
         token_hash = hashlib.sha256(raw_token.encode()).hexdigest()
         invitation = Invitation(
@@ -306,7 +308,7 @@ class TestAcceptInvitation:
         uow: FakeUnitOfWork,
         workspace_id: UUID,
         user_id: UUID,
-    ):
+    ) -> None:
         raw_token = "tok"
         token_hash = hashlib.sha256(raw_token.encode()).hexdigest()
         invitation = Invitation(
@@ -345,7 +347,7 @@ class TestAcceptById:
         uow: FakeUnitOfWork,
         workspace_id: UUID,
         user_id: UUID,
-    ):
+    ) -> None:
         invitation_id = uuid4()
         inviter_id = uuid4()
         invitation = Invitation(
@@ -381,7 +383,7 @@ class TestAcceptById:
     @pytest.mark.asyncio
     async def test_raises_not_found_for_nonexistent_id(
         self, service: InvitationService, uow: FakeUnitOfWork, user_id: UUID
-    ):
+    ) -> None:
         uow.invitations.get_by_id.return_value = None
 
         with pytest.raises(InvitationNotFoundError):
@@ -396,7 +398,7 @@ class TestAcceptById:
         uow: FakeUnitOfWork,
         workspace_id: UUID,
         user_id: UUID,
-    ):
+    ) -> None:
         invitation_id = uuid4()
         invitation = Invitation(
             id=invitation_id,
@@ -426,7 +428,7 @@ class TestAcceptById:
         uow: FakeUnitOfWork,
         workspace_id: UUID,
         user_id: UUID,
-    ):
+    ) -> None:
         invitation_id = uuid4()
         invitation = Invitation(
             id=invitation_id,
@@ -452,7 +454,7 @@ class TestAcceptById:
         uow: FakeUnitOfWork,
         workspace_id: UUID,
         user_id: UUID,
-    ):
+    ) -> None:
         invitation_id = uuid4()
         invitation = Invitation(
             id=invitation_id,
@@ -492,7 +494,7 @@ class TestRevokeInvitation:
         admin_member: WorkspaceMember,
         workspace_id: UUID,
         user_id: UUID,
-    ):
+    ) -> None:
         invitation_id = uuid4()
         invitation = Invitation(
             id=invitation_id,
@@ -526,7 +528,7 @@ class TestRevokeInvitation:
         admin_member: WorkspaceMember,
         workspace_id: UUID,
         user_id: UUID,
-    ):
+    ) -> None:
         uow.workspaces.get.return_value = workspace
         uow.workspaces.get_member.return_value = admin_member
         uow.invitations.get_for_workspace.return_value = []
@@ -544,7 +546,7 @@ class TestRevokeInvitation:
         workspace: Workspace,
         workspace_id: UUID,
         user_id: UUID,
-    ):
+    ) -> None:
         uow.workspaces.get.return_value = workspace
         uow.workspaces.get_member.return_value = WorkspaceMember(
             workspace_id=workspace_id, user_id=user_id, role=WorkspaceRole.MEMBER
@@ -568,7 +570,7 @@ class TestGetWorkspaceInvitations:
         workspace: Workspace,
         workspace_id: UUID,
         user_id: UUID,
-    ):
+    ) -> None:
         uow.workspaces.get.return_value = workspace
         uow.workspaces.get_member.return_value = WorkspaceMember(
             workspace_id=workspace_id, user_id=user_id, role=WorkspaceRole.VIEWER

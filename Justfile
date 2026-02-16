@@ -11,7 +11,7 @@ fmt:
 # Run lint checks (read-only)
 lint:
     ruff check src/ tests/
-    mypy src/
+    mypy src/ tests/
 
 # Run tests with coverage
 test *ARGS:
@@ -21,7 +21,7 @@ test *ARGS:
 check:
     ruff format --check src/ tests/
     ruff check src/ tests/
-    mypy src/
+    mypy src/ tests/
     pytest
 
 # Run dev server

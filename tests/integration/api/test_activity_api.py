@@ -1,10 +1,11 @@
 """Integration tests for Activity API."""
 
+from collections.abc import AsyncGenerator
 from uuid import uuid4
 
 import pytest
 from httpx import ASGITransport, AsyncClient
-from sqlalchemy.ext.asyncio import async_sessionmaker
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from infrastructure.auth.jwt_provider import JWTAuthProvider
 from infrastructure.auth.provider import TokenUser
@@ -13,10 +14,10 @@ from infrastructure.database.models import ProfileModel
 
 @pytest.fixture
 async def activity_client(
-    session_factory: async_sessionmaker,
+    session_factory: async_sessionmaker[AsyncSession],
     test_user: TokenUser,
     auth_provider: JWTAuthProvider,
-):
+) -> AsyncGenerator[AsyncClient, None]:
     """Create a test client with activity services wired up."""
     from api.dependencies.auth import get_auth_provider, get_current_user
     from api.v1.dependencies import (
@@ -52,13 +53,13 @@ async def activity_client(
             session.add(profile)
             await session.commit()
 
-    async def override_get_user():
+    async def override_get_user() -> TokenUser:
         return test_user
 
-    def override_get_auth_provider():
+    def override_get_auth_provider() -> JWTAuthProvider:
         return auth_provider
 
-    def test_uow_factory():
+    def test_uow_factory() -> SQLAlchemyUnitOfWork:
         return SQLAlchemyUnitOfWork(session_factory)
 
     activity_service = ActivityService(test_uow_factory)
@@ -87,7 +88,7 @@ class TestWorkspaceActivity:
     """Tests for workspace activity feed."""
 
     @pytest.mark.asyncio
-    async def test_get_workspace_activity_feed(self, activity_client: AsyncClient):
+    async def test_get_workspace_activity_feed(self, activity_client: AsyncClient) -> None:
         """GET /api/v1/workspaces/{ws}/activity returns activity feed."""
         # Create workspace (generates activity)
         create = await activity_client.post(
@@ -103,14 +104,14 @@ class TestWorkspaceActivity:
         assert "meta" in data
 
     @pytest.mark.asyncio
-    async def test_get_workspace_activity_not_found(self, activity_client: AsyncClient):
+    async def test_get_workspace_activity_not_found(self, activity_client: AsyncClient) -> None:
         """Activity feed for non-existent workspace returns 404."""
         response = await activity_client.get(f"/api/v1/workspaces/{uuid4()}/activity")
 
         assert response.status_code == 404
 
     @pytest.mark.asyncio
-    async def test_get_workspace_activity_pagination(self, activity_client: AsyncClient):
+    async def test_get_workspace_activity_pagination(self, activity_client: AsyncClient) -> None:
         """Activity feed respects limit and offset params."""
         create = await activity_client.post(
             "/api/v1/workspaces", json={"name": f"Paginated Activity WS {uuid4().hex[:8]}"}
@@ -132,7 +133,7 @@ class TestEntityHistory:
     """Tests for entity activity history."""
 
     @pytest.mark.asyncio
-    async def test_get_entity_history(self, activity_client: AsyncClient):
+    async def test_get_entity_history(self, activity_client: AsyncClient) -> None:
         """GET /api/v1/workspaces/{ws}/activity/{type}/{id} returns history."""
         create = await activity_client.post(
             "/api/v1/workspaces", json={"name": f"Entity History WS {uuid4().hex[:8]}"}
@@ -145,7 +146,9 @@ class TestEntityHistory:
         assert "data" in response.json()
 
     @pytest.mark.asyncio
-    async def test_get_entity_history_workspace_not_found(self, activity_client: AsyncClient):
+    async def test_get_entity_history_workspace_not_found(
+        self, activity_client: AsyncClient
+    ) -> None:
         """Entity history for non-existent workspace returns 404."""
         response = await activity_client.get(
             f"/api/v1/workspaces/{uuid4()}/activity/todo/{uuid4()}"

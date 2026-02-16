@@ -45,7 +45,7 @@ class TestGetForWorkspace:
         workspace: Workspace,
         workspace_id: UUID,
         user_id: UUID,
-    ):
+    ) -> None:
         uow.workspaces.get.return_value = workspace
         uow.workspaces.get_member.return_value = WorkspaceMember(
             workspace_id=workspace_id, user_id=user_id, role=WorkspaceRole.VIEWER
@@ -65,7 +65,7 @@ class TestGetForWorkspace:
         uow: FakeUnitOfWork,
         workspace_id: UUID,
         user_id: UUID,
-    ):
+    ) -> None:
         uow.workspaces.get.return_value = None
 
         with pytest.raises(WorkspaceNotFoundError):
@@ -79,7 +79,7 @@ class TestGetForWorkspace:
         workspace: Workspace,
         workspace_id: UUID,
         user_id: UUID,
-    ):
+    ) -> None:
         uow.workspaces.get.return_value = workspace
         uow.workspaces.get_member.return_value = None
 
@@ -99,7 +99,7 @@ class TestGetById:
         workspace_id: UUID,
         user_id: UUID,
         group: Group,
-    ):
+    ) -> None:
         uow.workspaces.get_member.return_value = WorkspaceMember(
             workspace_id=workspace_id, user_id=user_id, role=WorkspaceRole.VIEWER
         )
@@ -115,7 +115,7 @@ class TestGetById:
         uow: FakeUnitOfWork,
         workspace_id: UUID,
         user_id: UUID,
-    ):
+    ) -> None:
         uow.workspaces.get_member.return_value = WorkspaceMember(
             workspace_id=workspace_id, user_id=user_id, role=WorkspaceRole.VIEWER
         )
@@ -131,7 +131,7 @@ class TestGetById:
         uow: FakeUnitOfWork,
         workspace_id: UUID,
         user_id: UUID,
-    ):
+    ) -> None:
         wrong_ws = uuid4()
         uow.workspaces.get_member.return_value = WorkspaceMember(
             workspace_id=workspace_id, user_id=user_id, role=WorkspaceRole.VIEWER
@@ -154,7 +154,7 @@ class TestCreate:
         workspace: Workspace,
         workspace_id: UUID,
         user_id: UUID,
-    ):
+    ) -> None:
         uow.workspaces.get.return_value = workspace
         uow.workspaces.get_member.return_value = WorkspaceMember(
             workspace_id=workspace_id, user_id=user_id, role=WorkspaceRole.ADMIN
@@ -178,7 +178,7 @@ class TestCreate:
         workspace: Workspace,
         workspace_id: UUID,
         user_id: UUID,
-    ):
+    ) -> None:
         uow.workspaces.get.return_value = workspace
         uow.workspaces.get_member.return_value = WorkspaceMember(
             workspace_id=workspace_id, user_id=user_id, role=WorkspaceRole.MEMBER
@@ -200,7 +200,7 @@ class TestUpdate:
         workspace_id: UUID,
         user_id: UUID,
         group: Group,
-    ):
+    ) -> None:
         uow.groups.get.return_value = group
         uow.workspaces.get_member.return_value = WorkspaceMember(
             workspace_id=workspace_id, user_id=user_id, role=WorkspaceRole.ADMIN
@@ -223,7 +223,7 @@ class TestUpdate:
         workspace_id: UUID,
         user_id: UUID,
         group: Group,
-    ):
+    ) -> None:
         uow.groups.get.return_value = group
         # workspace member but not admin
         uow.workspaces.get_member.return_value = WorkspaceMember(
@@ -247,7 +247,7 @@ class TestUpdate:
         workspace_id: UUID,
         user_id: UUID,
         group: Group,
-    ):
+    ) -> None:
         uow.groups.get.return_value = group
         uow.workspaces.get_member.return_value = WorkspaceMember(
             workspace_id=workspace_id, user_id=user_id, role=WorkspaceRole.MEMBER
@@ -272,7 +272,7 @@ class TestDelete:
         workspace_id: UUID,
         user_id: UUID,
         group: Group,
-    ):
+    ) -> None:
         uow.groups.get.return_value = group
         uow.workspaces.get_member.return_value = WorkspaceMember(
             workspace_id=workspace_id, user_id=user_id, role=WorkspaceRole.ADMIN
@@ -291,7 +291,7 @@ class TestDelete:
         uow: FakeUnitOfWork,
         workspace_id: UUID,
         user_id: UUID,
-    ):
+    ) -> None:
         uow.groups.get.return_value = None
 
         with pytest.raises(GroupNotFoundError):
@@ -310,7 +310,7 @@ class TestAddMember:
         workspace_id: UUID,
         user_id: UUID,
         group: Group,
-    ):
+    ) -> None:
         target = uuid4()
         uow.groups.get.return_value = group
         uow.workspaces.get_member.side_effect = [
@@ -336,7 +336,7 @@ class TestAddMember:
         workspace_id: UUID,
         user_id: UUID,
         group: Group,
-    ):
+    ) -> None:
         target = uuid4()
         uow.groups.get.return_value = group
         uow.workspaces.get_member.side_effect = [
@@ -355,7 +355,7 @@ class TestAddMember:
         workspace_id: UUID,
         user_id: UUID,
         group: Group,
-    ):
+    ) -> None:
         target = uuid4()
         uow.groups.get.return_value = group
         uow.workspaces.get_member.side_effect = [
@@ -382,7 +382,7 @@ class TestRemoveMember:
         workspace_id: UUID,
         user_id: UUID,
         group: Group,
-    ):
+    ) -> None:
         target = uuid4()
         uow.groups.get.return_value = group
         uow.groups.get_member.side_effect = [
@@ -406,7 +406,7 @@ class TestRemoveMember:
         workspace_id: UUID,
         user_id: UUID,
         group: Group,
-    ):
+    ) -> None:
         uow.groups.get.return_value = group
         uow.groups.get_member.return_value = GroupMember(
             group_id=group.id, user_id=user_id, role=GroupRole.MEMBER
@@ -426,7 +426,7 @@ class TestRemoveMember:
         workspace_id: UUID,
         user_id: UUID,
         group: Group,
-    ):
+    ) -> None:
         uow.groups.get.return_value = group
         uow.groups.get_member.return_value = None
 

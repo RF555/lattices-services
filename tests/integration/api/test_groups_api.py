@@ -1,10 +1,11 @@
 """Integration tests for Groups API."""
 
+from collections.abc import AsyncGenerator
 from uuid import uuid4
 
 import pytest
 from httpx import ASGITransport, AsyncClient
-from sqlalchemy.ext.asyncio import async_sessionmaker
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from infrastructure.auth.jwt_provider import JWTAuthProvider
 from infrastructure.auth.provider import TokenUser
@@ -13,10 +14,10 @@ from infrastructure.database.models import ProfileModel
 
 @pytest.fixture
 async def group_client(
-    session_factory: async_sessionmaker,
+    session_factory: async_sessionmaker[AsyncSession],
     test_user: TokenUser,
     auth_provider: JWTAuthProvider,
-):
+) -> AsyncGenerator[AsyncClient, None]:
     """Create a test client with workspace and group services wired up."""
     from api.dependencies.auth import get_auth_provider, get_current_user
     from api.v1.dependencies import (
@@ -53,13 +54,13 @@ async def group_client(
             session.add(profile)
             await session.commit()
 
-    async def override_get_user():
+    async def override_get_user() -> TokenUser:
         return test_user
 
-    def override_get_auth_provider():
+    def override_get_auth_provider() -> JWTAuthProvider:
         return auth_provider
 
-    def test_uow_factory():
+    def test_uow_factory() -> SQLAlchemyUnitOfWork:
         return SQLAlchemyUnitOfWork(session_factory)
 
     activity_service = ActivityService(test_uow_factory)
@@ -88,14 +89,14 @@ async def workspace_id(group_client: AsyncClient) -> str:
     unique_name = f"Group Test WS {uuid4().hex[:8]}"
     response = await group_client.post("/api/v1/workspaces", json={"name": unique_name})
     assert response.status_code == 201, f"Workspace creation failed: {response.json()}"
-    return response.json()["data"]["id"]
+    return str(response.json()["data"]["id"])
 
 
 class TestGroupsCRUD:
     """Tests for group CRUD operations."""
 
     @pytest.mark.asyncio
-    async def test_create_group(self, group_client: AsyncClient, workspace_id: str):
+    async def test_create_group(self, group_client: AsyncClient, workspace_id: str) -> None:
         """POST /api/v1/workspaces/{ws}/groups returns 201."""
         response = await group_client.post(
             f"/api/v1/workspaces/{workspace_id}/groups",
@@ -108,7 +109,7 @@ class TestGroupsCRUD:
         assert data["workspace_id"] == workspace_id
 
     @pytest.mark.asyncio
-    async def test_list_groups(self, group_client: AsyncClient, workspace_id: str):
+    async def test_list_groups(self, group_client: AsyncClient, workspace_id: str) -> None:
         """GET /api/v1/workspaces/{ws}/groups returns list."""
         await group_client.post(
             f"/api/v1/workspaces/{workspace_id}/groups",
@@ -121,7 +122,7 @@ class TestGroupsCRUD:
         assert len(response.json()["data"]) >= 1
 
     @pytest.mark.asyncio
-    async def test_update_group(self, group_client: AsyncClient, workspace_id: str):
+    async def test_update_group(self, group_client: AsyncClient, workspace_id: str) -> None:
         """PATCH /api/v1/workspaces/{ws}/groups/{id} updates group."""
         create = await group_client.post(
             f"/api/v1/workspaces/{workspace_id}/groups",
@@ -138,7 +139,7 @@ class TestGroupsCRUD:
         assert response.json()["data"]["name"] == "Updated Group"
 
     @pytest.mark.asyncio
-    async def test_delete_group(self, group_client: AsyncClient, workspace_id: str):
+    async def test_delete_group(self, group_client: AsyncClient, workspace_id: str) -> None:
         """DELETE /api/v1/workspaces/{ws}/groups/{id} returns 204."""
         create = await group_client.post(
             f"/api/v1/workspaces/{workspace_id}/groups",
@@ -155,7 +156,7 @@ class TestGroupMembers:
     """Tests for group member management."""
 
     @pytest.mark.asyncio
-    async def test_list_group_members(self, group_client: AsyncClient, workspace_id: str):
+    async def test_list_group_members(self, group_client: AsyncClient, workspace_id: str) -> None:
         """GET /api/v1/workspaces/{ws}/groups/{id}/members returns members."""
         create = await group_client.post(
             f"/api/v1/workspaces/{workspace_id}/groups",
@@ -177,8 +178,8 @@ class TestGroupMembers:
         self,
         group_client: AsyncClient,
         workspace_id: str,
-        session_factory: async_sessionmaker,
-    ):
+        session_factory: async_sessionmaker[AsyncSession],
+    ) -> None:
         """POST /api/v1/workspaces/{ws}/groups/{id}/members adds member."""
         # Create second user and add to workspace
         second_user_id = uuid4()
@@ -217,8 +218,8 @@ class TestGroupMembers:
         self,
         group_client: AsyncClient,
         workspace_id: str,
-        session_factory: async_sessionmaker,
-    ):
+        session_factory: async_sessionmaker[AsyncSession],
+    ) -> None:
         """Adding same member twice returns 409."""
         dup_id = uuid4()
         async with session_factory() as session:
@@ -260,8 +261,8 @@ class TestGroupMembers:
         self,
         group_client: AsyncClient,
         workspace_id: str,
-        session_factory: async_sessionmaker,
-    ):
+        session_factory: async_sessionmaker[AsyncSession],
+    ) -> None:
         """DELETE /api/v1/workspaces/{ws}/groups/{gid}/members/{uid} removes member."""
         rm_id = uuid4()
         async with session_factory() as session:

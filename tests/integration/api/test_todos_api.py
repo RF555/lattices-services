@@ -4,14 +4,14 @@ from uuid import uuid4
 
 import pytest
 from httpx import AsyncClient
-from sqlalchemy.ext.asyncio import async_sessionmaker
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 
 class TestTodosAPI:
     """Integration tests for Todos API."""
 
     @pytest.mark.asyncio
-    async def test_create_todo(self, authenticated_client: AsyncClient):
+    async def test_create_todo(self, authenticated_client: AsyncClient) -> None:
         """Test POST /api/v1/todos."""
         response = await authenticated_client.post(
             "/api/v1/todos",
@@ -27,7 +27,7 @@ class TestTodosAPI:
         assert "id" in data
 
     @pytest.mark.asyncio
-    async def test_create_todo_minimal(self, authenticated_client: AsyncClient):
+    async def test_create_todo_minimal(self, authenticated_client: AsyncClient) -> None:
         """Test creating todo with only required fields."""
         response = await authenticated_client.post(
             "/api/v1/todos",
@@ -38,7 +38,7 @@ class TestTodosAPI:
         assert response.json()["data"]["title"] == "Minimal Task"
 
     @pytest.mark.asyncio
-    async def test_create_todo_with_parent(self, authenticated_client: AsyncClient):
+    async def test_create_todo_with_parent(self, authenticated_client: AsyncClient) -> None:
         """Test creating nested todo."""
         # Create parent
         parent = await authenticated_client.post(
@@ -57,7 +57,7 @@ class TestTodosAPI:
         assert response.json()["data"]["parent_id"] == parent_id
 
     @pytest.mark.asyncio
-    async def test_create_todo_validation_error(self, authenticated_client: AsyncClient):
+    async def test_create_todo_validation_error(self, authenticated_client: AsyncClient) -> None:
         """Test validation error on invalid input."""
         response = await authenticated_client.post(
             "/api/v1/todos",
@@ -67,7 +67,7 @@ class TestTodosAPI:
         assert response.status_code == 422
 
     @pytest.mark.asyncio
-    async def test_list_todos(self, authenticated_client: AsyncClient):
+    async def test_list_todos(self, authenticated_client: AsyncClient) -> None:
         """Test GET /api/v1/todos."""
         # Create some todos
         await authenticated_client.post("/api/v1/todos", json={"title": "List Task 1"})
@@ -82,7 +82,7 @@ class TestTodosAPI:
         assert "total" in data["meta"]
 
     @pytest.mark.asyncio
-    async def test_get_todo(self, authenticated_client: AsyncClient):
+    async def test_get_todo(self, authenticated_client: AsyncClient) -> None:
         """Test GET /api/v1/todos/{id}."""
         # Create todo
         create = await authenticated_client.post(
@@ -97,14 +97,14 @@ class TestTodosAPI:
         assert response.json()["data"]["id"] == todo_id
 
     @pytest.mark.asyncio
-    async def test_get_todo_not_found(self, authenticated_client: AsyncClient):
+    async def test_get_todo_not_found(self, authenticated_client: AsyncClient) -> None:
         """Test 404 for non-existent todo."""
         response = await authenticated_client.get(f"/api/v1/todos/{uuid4()}")
 
         assert response.status_code == 404
 
     @pytest.mark.asyncio
-    async def test_update_todo_title(self, authenticated_client: AsyncClient):
+    async def test_update_todo_title(self, authenticated_client: AsyncClient) -> None:
         """Test PATCH /api/v1/todos/{id} - update title."""
         # Create todo
         create = await authenticated_client.post(
@@ -122,7 +122,7 @@ class TestTodosAPI:
         assert response.json()["data"]["title"] == "Updated Title"
 
     @pytest.mark.asyncio
-    async def test_update_todo_complete(self, authenticated_client: AsyncClient):
+    async def test_update_todo_complete(self, authenticated_client: AsyncClient) -> None:
         """Test completing a todo."""
         # Create todo
         create = await authenticated_client.post(
@@ -142,7 +142,7 @@ class TestTodosAPI:
         assert data["completed_at"] is not None
 
     @pytest.mark.asyncio
-    async def test_update_todo_uncomplete(self, authenticated_client: AsyncClient):
+    async def test_update_todo_uncomplete(self, authenticated_client: AsyncClient) -> None:
         """Test uncompleting a todo."""
         # Create and complete todo
         create = await authenticated_client.post(
@@ -164,7 +164,7 @@ class TestTodosAPI:
         assert data["completed_at"] is None
 
     @pytest.mark.asyncio
-    async def test_delete_todo(self, authenticated_client: AsyncClient):
+    async def test_delete_todo(self, authenticated_client: AsyncClient) -> None:
         """Test DELETE /api/v1/todos/{id}."""
         # Create todo
         create = await authenticated_client.post(
@@ -182,13 +182,13 @@ class TestTodosAPI:
         assert get.status_code == 404
 
     @pytest.mark.asyncio
-    async def test_delete_todo_not_found(self, authenticated_client: AsyncClient):
+    async def test_delete_todo_not_found(self, authenticated_client: AsyncClient) -> None:
         """Test 404 when deleting non-existent todo."""
         response = await authenticated_client.delete(f"/api/v1/todos/{uuid4()}")
         assert response.status_code == 404
 
     @pytest.mark.asyncio
-    async def test_delete_todo_cascade(self, authenticated_client: AsyncClient):
+    async def test_delete_todo_cascade(self, authenticated_client: AsyncClient) -> None:
         """Test cascade delete removes children."""
         # Create hierarchy
         parent = await authenticated_client.post("/api/v1/todos", json={"title": "Cascade Parent"})
@@ -212,7 +212,7 @@ class TestChildCounts:
     """Tests for child_count and completed_child_count fields."""
 
     @pytest.mark.asyncio
-    async def test_leaf_todo_has_zero_counts(self, authenticated_client: AsyncClient):
+    async def test_leaf_todo_has_zero_counts(self, authenticated_client: AsyncClient) -> None:
         """Newly created todo (leaf) has both child counts at 0."""
         response = await authenticated_client.post(
             "/api/v1/todos",
@@ -225,7 +225,7 @@ class TestChildCounts:
         assert data["completed_child_count"] == 0
 
     @pytest.mark.asyncio
-    async def test_parent_shows_child_count(self, authenticated_client: AsyncClient):
+    async def test_parent_shows_child_count(self, authenticated_client: AsyncClient) -> None:
         """Parent with 2 children shows child_count=2, completed_child_count=0."""
         parent = await authenticated_client.post("/api/v1/todos", json={"title": "Parent"})
         parent_id = parent.json()["data"]["id"]
@@ -245,7 +245,7 @@ class TestChildCounts:
         assert data["completed_child_count"] == 0
 
     @pytest.mark.asyncio
-    async def test_completed_child_count(self, authenticated_client: AsyncClient):
+    async def test_completed_child_count(self, authenticated_client: AsyncClient) -> None:
         """Completing 1 of 2 children shows completed_child_count=1."""
         parent = await authenticated_client.post("/api/v1/todos", json={"title": "Parent"})
         parent_id = parent.json()["data"]["id"]
@@ -270,7 +270,7 @@ class TestChildCounts:
         assert data["completed_child_count"] == 1
 
     @pytest.mark.asyncio
-    async def test_child_counts_in_list(self, authenticated_client: AsyncClient):
+    async def test_child_counts_in_list(self, authenticated_client: AsyncClient) -> None:
         """List endpoint includes correct counts for parent and child."""
         parent = await authenticated_client.post("/api/v1/todos", json={"title": "List Parent"})
         parent_id = parent.json()["data"]["id"]
@@ -291,7 +291,7 @@ class TestChildCounts:
         assert todos[child_id]["completed_child_count"] == 0
 
     @pytest.mark.asyncio
-    async def test_child_counts_after_update(self, authenticated_client: AsyncClient):
+    async def test_child_counts_after_update(self, authenticated_client: AsyncClient) -> None:
         """Update endpoint returns fresh child counts."""
         parent = await authenticated_client.post("/api/v1/todos", json={"title": "Update Parent"})
         parent_id = parent.json()["data"]["id"]
@@ -321,7 +321,7 @@ class TestTodoQueryFilters:
     @pytest.mark.asyncio
     async def test_list_todos_should_exclude_completed_when_include_completed_is_false(
         self, authenticated_client: AsyncClient
-    ):
+    ) -> None:
         """GET /api/v1/todos?include_completed=false excludes completed todos."""
         # Arrange -- create two todos, complete one
         open_resp = await authenticated_client.post(
@@ -349,7 +349,7 @@ class TestTodoQueryFilters:
     @pytest.mark.asyncio
     async def test_list_todos_should_include_completed_by_default(
         self, authenticated_client: AsyncClient
-    ):
+    ) -> None:
         """GET /api/v1/todos (default include_completed=true) returns both open and done."""
         # Arrange -- create one open and one completed todo
         open_resp = await authenticated_client.post(
@@ -376,8 +376,8 @@ class TestTodoQueryFilters:
     async def test_list_todos_should_filter_by_workspace_id(
         self,
         authenticated_client: AsyncClient,
-        session_factory: async_sessionmaker,
-    ):
+        session_factory: async_sessionmaker[AsyncSession],
+    ) -> None:
         """GET /api/v1/todos?workspace_id=<id> returns only workspace-scoped todos."""
         from infrastructure.database.models import WorkspaceMemberModel, WorkspaceModel
         from tests.conftest import TEST_USER_ID
@@ -431,7 +431,7 @@ class TestTodoQueryFilters:
     @pytest.mark.asyncio
     async def test_list_todos_meta_should_report_correct_root_count(
         self, authenticated_client: AsyncClient
-    ):
+    ) -> None:
         """Meta root_count reflects only root-level (no parent) todos in the result."""
         # Arrange -- create a root todo and a child todo
         root_resp = await authenticated_client.post(
