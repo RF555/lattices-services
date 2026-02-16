@@ -1,5 +1,6 @@
 """Unit tests for WorkspaceService."""
 
+from collections.abc import Generator
 from unittest.mock import AsyncMock
 from uuid import UUID, uuid4
 
@@ -9,6 +10,7 @@ from core.exceptions import (
     AlreadyAMemberError,
     InsufficientPermissionsError,
     LastOwnerError,
+    LastWorkspaceError,
     NotAMemberError,
     WorkspaceNotFoundError,
     WorkspaceSlugTakenError,
@@ -86,7 +88,7 @@ class TestGetAllForUser:
     @pytest.mark.asyncio
     async def test_returns_workspaces(
         self, service: WorkspaceService, uow: FakeUnitOfWork, user_id: UUID
-    ):
+    ) -> None:
         ws1 = Workspace(name="WS1", slug="ws-1", created_by=user_id)
         ws2 = Workspace(name="WS2", slug="ws-2", created_by=user_id)
         uow.workspaces.get_all_for_user.return_value = [ws1, ws2]
@@ -109,7 +111,7 @@ class TestGetById:
         workspace_id: UUID,
         user_id: UUID,
         sample_workspace: Workspace,
-    ):
+    ) -> None:
         uow.workspaces.get.return_value = sample_workspace
         uow.workspaces.get_member.return_value = WorkspaceMember(
             workspace_id=workspace_id, user_id=user_id, role=WorkspaceRole.MEMBER
@@ -121,7 +123,7 @@ class TestGetById:
     @pytest.mark.asyncio
     async def test_raises_not_found_when_missing(
         self, service: WorkspaceService, uow: FakeUnitOfWork, workspace_id: UUID, user_id: UUID
-    ):
+    ) -> None:
         uow.workspaces.get.return_value = None
 
         with pytest.raises(WorkspaceNotFoundError):
@@ -135,7 +137,7 @@ class TestGetById:
         workspace_id: UUID,
         user_id: UUID,
         sample_workspace: Workspace,
-    ):
+    ) -> None:
         uow.workspaces.get.return_value = sample_workspace
         uow.workspaces.get_member.return_value = None
 
@@ -150,7 +152,7 @@ class TestCreate:
     @pytest.mark.asyncio
     async def test_creates_workspace_with_owner(
         self, service: WorkspaceService, uow: FakeUnitOfWork, user_id: UUID
-    ):
+    ) -> None:
         uow.workspaces.get_by_slug.return_value = None
         created = Workspace(name="New WS", slug="new-ws", created_by=user_id)
         uow.workspaces.create.return_value = created
@@ -170,7 +172,7 @@ class TestCreate:
     @pytest.mark.asyncio
     async def test_slug_generation(
         self, service: WorkspaceService, uow: FakeUnitOfWork, user_id: UUID
-    ):
+    ) -> None:
         uow.workspaces.get_by_slug.return_value = None
         uow.workspaces.create.return_value = Workspace(
             name="Test Workspace!", slug="test-workspace", created_by=user_id
@@ -184,7 +186,7 @@ class TestCreate:
     @pytest.mark.asyncio
     async def test_raises_slug_taken_on_collision(
         self, service: WorkspaceService, uow: FakeUnitOfWork, user_id: UUID
-    ):
+    ) -> None:
         existing = Workspace(name="Existing", slug="test-workspace", created_by=user_id)
         uow.workspaces.get_by_slug.return_value = existing
 
@@ -204,7 +206,7 @@ class TestUpdate:
         workspace_id: UUID,
         user_id: UUID,
         sample_workspace: Workspace,
-    ):
+    ) -> None:
         uow.workspaces.get.return_value = sample_workspace
         uow.workspaces.get_member.return_value = WorkspaceMember(
             workspace_id=workspace_id, user_id=user_id, role=WorkspaceRole.ADMIN
@@ -228,7 +230,7 @@ class TestUpdate:
     @pytest.mark.asyncio
     async def test_raises_not_found(
         self, service: WorkspaceService, uow: FakeUnitOfWork, workspace_id: UUID, user_id: UUID
-    ):
+    ) -> None:
         uow.workspaces.get.return_value = None
 
         with pytest.raises(WorkspaceNotFoundError):
@@ -242,7 +244,7 @@ class TestUpdate:
         workspace_id: UUID,
         user_id: UUID,
         sample_workspace: Workspace,
-    ):
+    ) -> None:
         uow.workspaces.get.return_value = sample_workspace
         uow.workspaces.get_member.return_value = WorkspaceMember(
             workspace_id=workspace_id, user_id=user_id, role=WorkspaceRole.VIEWER
@@ -264,11 +266,12 @@ class TestDelete:
         workspace_id: UUID,
         user_id: UUID,
         sample_workspace: Workspace,
-    ):
+    ) -> None:
         uow.workspaces.get.return_value = sample_workspace
         uow.workspaces.get_member.return_value = WorkspaceMember(
             workspace_id=workspace_id, user_id=user_id, role=WorkspaceRole.OWNER
         )
+        uow.workspaces.count_user_workspaces.return_value = 2
         uow.workspaces.delete.return_value = True
 
         result = await service.delete(workspace_id=workspace_id, user_id=user_id)
@@ -284,7 +287,7 @@ class TestDelete:
         workspace_id: UUID,
         user_id: UUID,
         sample_workspace: Workspace,
-    ):
+    ) -> None:
         uow.workspaces.get.return_value = sample_workspace
         uow.workspaces.get_member.return_value = WorkspaceMember(
             workspace_id=workspace_id, user_id=user_id, role=WorkspaceRole.ADMIN
@@ -306,7 +309,7 @@ class TestAddMember:
         workspace_id: UUID,
         user_id: UUID,
         sample_workspace: Workspace,
-    ):
+    ) -> None:
         target_user_id = uuid4()
         uow.workspaces.get.return_value = sample_workspace
         uow.workspaces.get_member.side_effect = [
@@ -340,7 +343,7 @@ class TestAddMember:
         workspace_id: UUID,
         user_id: UUID,
         sample_workspace: Workspace,
-    ):
+    ) -> None:
         target_user_id = uuid4()
         uow.workspaces.get.return_value = sample_workspace
         uow.workspaces.get_member.side_effect = [
@@ -366,7 +369,7 @@ class TestAddMember:
         workspace_id: UUID,
         user_id: UUID,
         sample_workspace: Workspace,
-    ):
+    ) -> None:
         uow.workspaces.get.return_value = sample_workspace
         uow.workspaces.get_member.return_value = WorkspaceMember(
             workspace_id=workspace_id, user_id=user_id, role=WorkspaceRole.ADMIN
@@ -393,7 +396,7 @@ class TestUpdateMemberRole:
         workspace_id: UUID,
         user_id: UUID,
         sample_workspace: Workspace,
-    ):
+    ) -> None:
         target_user_id = uuid4()
         uow.workspaces.get.return_value = sample_workspace
         uow.workspaces.get_member.side_effect = [
@@ -424,7 +427,7 @@ class TestUpdateMemberRole:
         workspace_id: UUID,
         user_id: UUID,
         sample_workspace: Workspace,
-    ):
+    ) -> None:
         uow.workspaces.get.return_value = sample_workspace
         uow.workspaces.get_member.return_value = WorkspaceMember(
             workspace_id=workspace_id, user_id=user_id, role=WorkspaceRole.ADMIN
@@ -446,7 +449,7 @@ class TestUpdateMemberRole:
         workspace_id: UUID,
         user_id: UUID,
         sample_workspace: Workspace,
-    ):
+    ) -> None:
         target_user_id = uuid4()
         uow.workspaces.get.return_value = sample_workspace
         uow.workspaces.get_member.side_effect = [
@@ -477,7 +480,7 @@ class TestRemoveMember:
         workspace_id: UUID,
         user_id: UUID,
         sample_workspace: Workspace,
-    ):
+    ) -> None:
         target_user_id = uuid4()
         uow.workspaces.get.return_value = sample_workspace
         uow.workspaces.get_member.side_effect = [
@@ -503,12 +506,13 @@ class TestRemoveMember:
         workspace_id: UUID,
         user_id: UUID,
         sample_workspace: Workspace,
-    ):
+    ) -> None:
         uow.workspaces.get.return_value = sample_workspace
         uow.workspaces.get_member.side_effect = [
             WorkspaceMember(workspace_id=workspace_id, user_id=user_id, role=WorkspaceRole.MEMBER),
             WorkspaceMember(workspace_id=workspace_id, user_id=user_id, role=WorkspaceRole.MEMBER),
         ]
+        uow.workspaces.count_user_workspaces.return_value = 2
         uow.workspaces.remove_member.return_value = True
 
         result = await service.remove_member(
@@ -526,12 +530,13 @@ class TestRemoveMember:
         workspace_id: UUID,
         user_id: UUID,
         sample_workspace: Workspace,
-    ):
+    ) -> None:
         uow.workspaces.get.return_value = sample_workspace
         uow.workspaces.get_member.side_effect = [
             WorkspaceMember(workspace_id=workspace_id, user_id=user_id, role=WorkspaceRole.OWNER),
             WorkspaceMember(workspace_id=workspace_id, user_id=user_id, role=WorkspaceRole.OWNER),
         ]
+        uow.workspaces.count_user_workspaces.return_value = 2
         uow.workspaces.count_owners.return_value = 1
 
         with pytest.raises(LastOwnerError):
@@ -547,7 +552,7 @@ class TestRemoveMember:
         workspace_id: UUID,
         user_id: UUID,
         sample_workspace: Workspace,
-    ):
+    ) -> None:
         target_user_id = uuid4()
         uow.workspaces.get.return_value = sample_workspace
         uow.workspaces.get_member.side_effect = [
@@ -575,7 +580,7 @@ class TestTransferOwnership:
         workspace_id: UUID,
         user_id: UUID,
         sample_workspace: Workspace,
-    ):
+    ) -> None:
         new_owner_id = uuid4()
         uow.workspaces.get.return_value = sample_workspace
         uow.workspaces.get_member.side_effect = [
@@ -608,7 +613,7 @@ class TestTransferOwnership:
         workspace_id: UUID,
         user_id: UUID,
         sample_workspace: Workspace,
-    ):
+    ) -> None:
         uow.workspaces.get.return_value = sample_workspace
         uow.workspaces.get_member.return_value = WorkspaceMember(
             workspace_id=workspace_id, user_id=user_id, role=WorkspaceRole.ADMIN
@@ -629,7 +634,7 @@ class TestTransferOwnership:
         workspace_id: UUID,
         user_id: UUID,
         sample_workspace: Workspace,
-    ):
+    ) -> None:
         uow.workspaces.get.return_value = sample_workspace
         uow.workspaces.get_member.side_effect = [
             WorkspaceMember(workspace_id=workspace_id, user_id=user_id, role=WorkspaceRole.OWNER),
@@ -655,7 +660,7 @@ class TestCheckPermission:
         uow: FakeUnitOfWork,
         workspace_id: UUID,
         user_id: UUID,
-    ):
+    ) -> None:
         uow.workspaces.get_member.return_value = WorkspaceMember(
             workspace_id=workspace_id, user_id=user_id, role=WorkspaceRole.ADMIN
         )
@@ -670,7 +675,7 @@ class TestCheckPermission:
         uow: FakeUnitOfWork,
         workspace_id: UUID,
         user_id: UUID,
-    ):
+    ) -> None:
         uow.workspaces.get_member.return_value = WorkspaceMember(
             workspace_id=workspace_id, user_id=user_id, role=WorkspaceRole.VIEWER
         )
@@ -685,7 +690,7 @@ class TestCheckPermission:
         uow: FakeUnitOfWork,
         workspace_id: UUID,
         user_id: UUID,
-    ):
+    ) -> None:
         uow.workspaces.get_member.return_value = None
 
         result = await service.check_permission(workspace_id, user_id, WorkspaceRole.VIEWER)
@@ -703,7 +708,7 @@ class TestGetUserRole:
         uow: FakeUnitOfWork,
         workspace_id: UUID,
         user_id: UUID,
-    ):
+    ) -> None:
         uow.workspaces.get_member.return_value = WorkspaceMember(
             workspace_id=workspace_id, user_id=user_id, role=WorkspaceRole.ADMIN
         )
@@ -720,7 +725,7 @@ class TestGetUserRole:
         uow: FakeUnitOfWork,
         workspace_id: UUID,
         user_id: UUID,
-    ):
+    ) -> None:
         uow.workspaces.get_member.return_value = None
 
         result = await service.get_user_role(workspace_id, user_id)
@@ -740,7 +745,7 @@ class TestGetMembers:
         workspace_id: UUID,
         user_id: UUID,
         sample_workspace: Workspace,
-    ):
+    ) -> None:
         members = [
             WorkspaceMember(workspace_id=workspace_id, user_id=user_id, role=WorkspaceRole.VIEWER),
             WorkspaceMember(workspace_id=workspace_id, user_id=uuid4(), role=WorkspaceRole.ADMIN),
@@ -763,7 +768,7 @@ class TestGetMembers:
         uow: FakeUnitOfWork,
         workspace_id: UUID,
         user_id: UUID,
-    ):
+    ) -> None:
         uow.workspaces.get.return_value = None
 
         with pytest.raises(WorkspaceNotFoundError):
@@ -783,7 +788,7 @@ class TestUpdateActivityLogging:
         user_id: UUID,
         sample_workspace: Workspace,
         mock_activity_service: AsyncMock,
-    ):
+    ) -> None:
         uow.workspaces.get.return_value = sample_workspace
         uow.workspaces.get_member.return_value = WorkspaceMember(
             workspace_id=workspace_id, user_id=user_id, role=WorkspaceRole.ADMIN
@@ -818,7 +823,7 @@ class TestUpdateActivityLogging:
         user_id: UUID,
         sample_workspace: Workspace,
         mock_activity_service: AsyncMock,
-    ):
+    ) -> None:
         uow.workspaces.get.return_value = sample_workspace
         uow.workspaces.get_member.return_value = WorkspaceMember(
             workspace_id=workspace_id, user_id=user_id, role=WorkspaceRole.ADMIN
@@ -851,7 +856,7 @@ class TestAddMemberActivityAndNotification:
         user_id: UUID,
         sample_workspace: Workspace,
         mock_activity_service: AsyncMock,
-    ):
+    ) -> None:
         target_user_id = uuid4()
         uow.workspaces.get.return_value = sample_workspace
         uow.workspaces.get_member.side_effect = [
@@ -889,7 +894,7 @@ class TestAddMemberActivityAndNotification:
         user_id: UUID,
         sample_workspace: Workspace,
         mock_notification_service: AsyncMock,
-    ):
+    ) -> None:
         target_user_id = uuid4()
         uow.workspaces.get.return_value = sample_workspace
         uow.workspaces.get_member.side_effect = [
@@ -927,7 +932,7 @@ class TestAddMemberActivityAndNotification:
         uow: FakeUnitOfWork,
         workspace_id: UUID,
         user_id: UUID,
-    ):
+    ) -> None:
         uow.workspaces.get.return_value = None
 
         with pytest.raises(WorkspaceNotFoundError):
@@ -951,7 +956,7 @@ class TestUpdateMemberRoleActivityAndNotification:
         user_id: UUID,
         sample_workspace: Workspace,
         mock_activity_service: AsyncMock,
-    ):
+    ) -> None:
         target_user_id = uuid4()
         uow.workspaces.get.return_value = sample_workspace
         uow.workspaces.get_member.side_effect = [
@@ -985,7 +990,7 @@ class TestUpdateMemberRoleActivityAndNotification:
         user_id: UUID,
         sample_workspace: Workspace,
         mock_notification_service: AsyncMock,
-    ):
+    ) -> None:
         target_user_id = uuid4()
         uow.workspaces.get.return_value = sample_workspace
         uow.workspaces.get_member.side_effect = [
@@ -1020,7 +1025,7 @@ class TestUpdateMemberRoleActivityAndNotification:
         uow: FakeUnitOfWork,
         workspace_id: UUID,
         user_id: UUID,
-    ):
+    ) -> None:
         uow.workspaces.get.return_value = None
 
         with pytest.raises(WorkspaceNotFoundError):
@@ -1039,7 +1044,7 @@ class TestUpdateMemberRoleActivityAndNotification:
         workspace_id: UUID,
         user_id: UUID,
         sample_workspace: Workspace,
-    ):
+    ) -> None:
         target_user_id = uuid4()
         uow.workspaces.get.return_value = sample_workspace
         uow.workspaces.get_member.side_effect = [
@@ -1063,7 +1068,7 @@ class TestUpdateMemberRoleActivityAndNotification:
         workspace_id: UUID,
         user_id: UUID,
         sample_workspace: Workspace,
-    ):
+    ) -> None:
         target_user_id = uuid4()
         uow.workspaces.get.return_value = sample_workspace
         uow.workspaces.get_member.side_effect = [
@@ -1095,7 +1100,7 @@ class TestRemoveMemberActivityAndNotification:
         user_id: UUID,
         sample_workspace: Workspace,
         mock_activity_service: AsyncMock,
-    ):
+    ) -> None:
         target_user_id = uuid4()
         uow.workspaces.get.return_value = sample_workspace
         uow.workspaces.get_member.side_effect = [
@@ -1126,12 +1131,13 @@ class TestRemoveMemberActivityAndNotification:
         sample_workspace: Workspace,
         mock_activity_service: AsyncMock,
         mock_notification_service: AsyncMock,
-    ):
+    ) -> None:
         uow.workspaces.get.return_value = sample_workspace
         uow.workspaces.get_member.side_effect = [
             WorkspaceMember(workspace_id=workspace_id, user_id=user_id, role=WorkspaceRole.MEMBER),
             WorkspaceMember(workspace_id=workspace_id, user_id=user_id, role=WorkspaceRole.MEMBER),
         ]
+        uow.workspaces.count_user_workspaces.return_value = 2
         uow.workspaces.remove_member.return_value = True
 
         await service_with_notifications.remove_member(
@@ -1154,7 +1160,7 @@ class TestRemoveMemberActivityAndNotification:
         user_id: UUID,
         sample_workspace: Workspace,
         mock_notification_service: AsyncMock,
-    ):
+    ) -> None:
         target_user_id = uuid4()
         uow.workspaces.get.return_value = sample_workspace
         uow.workspaces.get_member.side_effect = [
@@ -1182,7 +1188,7 @@ class TestRemoveMemberActivityAndNotification:
         uow: FakeUnitOfWork,
         workspace_id: UUID,
         user_id: UUID,
-    ):
+    ) -> None:
         uow.workspaces.get.return_value = None
 
         with pytest.raises(WorkspaceNotFoundError):
@@ -1198,7 +1204,7 @@ class TestRemoveMemberActivityAndNotification:
         workspace_id: UUID,
         user_id: UUID,
         sample_workspace: Workspace,
-    ):
+    ) -> None:
         uow.workspaces.get.return_value = sample_workspace
         uow.workspaces.get_member.side_effect = [
             None,  # actor not a member
@@ -1217,7 +1223,7 @@ class TestRemoveMemberActivityAndNotification:
         workspace_id: UUID,
         user_id: UUID,
         sample_workspace: Workspace,
-    ):
+    ) -> None:
         target_user_id = uuid4()
         uow.workspaces.get.return_value = sample_workspace
         uow.workspaces.get_member.side_effect = [
@@ -1238,7 +1244,7 @@ class TestRemoveMemberActivityAndNotification:
         workspace_id: UUID,
         user_id: UUID,
         sample_workspace: Workspace,
-    ):
+    ) -> None:
         """Admin cannot remove another Admin -- only Owner can remove Admins."""
         target_user_id = uuid4()
         uow.workspaces.get.return_value = sample_workspace
@@ -1262,7 +1268,7 @@ class TestRemoveMemberActivityAndNotification:
         workspace_id: UUID,
         user_id: UUID,
         sample_workspace: Workspace,
-    ):
+    ) -> None:
         """Owner should be able to remove an Admin member."""
         target_user_id = uuid4()
         uow.workspaces.get.return_value = sample_workspace
@@ -1295,7 +1301,7 @@ class TestTransferOwnershipActivityLogging:
         user_id: UUID,
         sample_workspace: Workspace,
         mock_activity_service: AsyncMock,
-    ):
+    ) -> None:
         new_owner_id = uuid4()
         uow.workspaces.get.return_value = sample_workspace
         uow.workspaces.get_member.side_effect = [
@@ -1332,7 +1338,7 @@ class TestTransferOwnershipActivityLogging:
         uow: FakeUnitOfWork,
         workspace_id: UUID,
         user_id: UUID,
-    ):
+    ) -> None:
         uow.workspaces.get.return_value = None
 
         with pytest.raises(WorkspaceNotFoundError):
@@ -1341,3 +1347,215 @@ class TestTransferOwnershipActivityLogging:
                 current_owner_id=user_id,
                 new_owner_id=uuid4(),
             )
+
+
+# --- ensure_personal_workspace ---
+
+
+class TestEnsurePersonalWorkspace:
+    @pytest.fixture(autouse=True)
+    def _clear_cache(self) -> Generator[None, None, None]:
+        """Clear the provisioned-users cache before each test."""
+        WorkspaceService.clear_provisioned_cache()
+        yield
+        WorkspaceService.clear_provisioned_cache()
+
+    @pytest.mark.asyncio
+    async def test_creates_workspace_when_user_has_none(
+        self, service: WorkspaceService, uow: FakeUnitOfWork, user_id: UUID
+    ) -> None:
+        uow.workspaces.get_all_for_user.return_value = []
+        uow.workspaces.get_by_slug.return_value = None
+        slug = f"personal-{str(user_id)[:8]}"
+        created = Workspace(name="Personal", slug=slug, created_by=user_id)
+        uow.workspaces.create.return_value = created
+        uow.workspaces.add_member.return_value = WorkspaceMember(
+            workspace_id=created.id, user_id=user_id, role=WorkspaceRole.OWNER
+        )
+
+        result = await service.ensure_personal_workspace(user_id)
+
+        assert result is not None
+        assert result.name == "Personal"
+        assert result.slug.startswith("personal-")
+        uow.workspaces.create.assert_called_once()
+        uow.workspaces.add_member.assert_called_once()
+        add_call = uow.workspaces.add_member.call_args[0][0]
+        assert add_call.role == WorkspaceRole.OWNER
+        assert uow.committed
+
+    @pytest.mark.asyncio
+    async def test_noop_when_user_has_workspaces(
+        self, service: WorkspaceService, uow: FakeUnitOfWork, user_id: UUID
+    ) -> None:
+        existing_ws = Workspace(name="Existing", slug="existing", created_by=user_id)
+        uow.workspaces.get_all_for_user.return_value = [existing_ws]
+
+        result = await service.ensure_personal_workspace(user_id)
+
+        assert result is None
+        uow.workspaces.create.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_handles_slug_collision(
+        self, service: WorkspaceService, uow: FakeUnitOfWork, user_id: UUID
+    ) -> None:
+        uow.workspaces.get_all_for_user.return_value = []
+        # First slug is taken, second is not
+        existing = Workspace(name="Other", slug=f"personal-{str(user_id)[:8]}", created_by=uuid4())
+        uow.workspaces.get_by_slug.return_value = existing
+        created = Workspace(
+            name="Personal", slug=f"personal-{str(user_id)[:12]}", created_by=user_id
+        )
+        uow.workspaces.create.return_value = created
+        uow.workspaces.add_member.return_value = WorkspaceMember(
+            workspace_id=created.id, user_id=user_id, role=WorkspaceRole.OWNER
+        )
+
+        result = await service.ensure_personal_workspace(user_id)
+
+        assert result is not None
+        create_call = uow.workspaces.create.call_args[0][0]
+        assert create_call.slug == f"personal-{str(user_id)[:12]}"
+        assert uow.committed
+
+    @pytest.mark.asyncio
+    async def test_cache_skips_db_on_second_call(
+        self, service: WorkspaceService, uow: FakeUnitOfWork, user_id: UUID
+    ) -> None:
+        """After confirming a user has workspaces, subsequent calls skip the DB."""
+        existing_ws = Workspace(name="Existing", slug="existing", created_by=user_id)
+        uow.workspaces.get_all_for_user.return_value = [existing_ws]
+
+        # First call hits DB
+        await service.ensure_personal_workspace(user_id)
+        assert uow.workspaces.get_all_for_user.call_count == 1
+
+        # Second call skips DB entirely (cache hit)
+        await service.ensure_personal_workspace(user_id)
+        assert uow.workspaces.get_all_for_user.call_count == 1  # still 1
+
+    @pytest.mark.asyncio
+    async def test_cache_populated_after_creation(
+        self, service: WorkspaceService, uow: FakeUnitOfWork, user_id: UUID
+    ) -> None:
+        """After creating a workspace, the user is cached as provisioned."""
+        uow.workspaces.get_all_for_user.return_value = []
+        uow.workspaces.get_by_slug.return_value = None
+        slug = f"personal-{str(user_id)[:8]}"
+        created = Workspace(name="Personal", slug=slug, created_by=user_id)
+        uow.workspaces.create.return_value = created
+        uow.workspaces.add_member.return_value = WorkspaceMember(
+            workspace_id=created.id, user_id=user_id, role=WorkspaceRole.OWNER
+        )
+
+        await service.ensure_personal_workspace(user_id)
+
+        # Second call should be a cache hit — no additional DB calls
+        await service.ensure_personal_workspace(user_id)
+        assert uow.workspaces.get_all_for_user.call_count == 1
+
+    @pytest.mark.asyncio
+    async def test_non_unique_integrity_error_is_reraised(
+        self, service: WorkspaceService, uow: FakeUnitOfWork, user_id: UUID
+    ) -> None:
+        """IntegrityErrors that are NOT unique-constraint violations must be re-raised."""
+        from sqlalchemy.exc import IntegrityError
+
+        uow.workspaces.get_all_for_user.return_value = []
+        uow.workspaces.get_by_slug.return_value = None
+        uow.workspaces.create.side_effect = IntegrityError(
+            "INSERT ...", {}, Exception("NOT NULL constraint failed: workspaces.name")
+        )
+
+        with pytest.raises(IntegrityError):
+            await service.ensure_personal_workspace(user_id)
+
+
+# --- Last workspace guards ---
+
+
+class TestLastWorkspaceGuard:
+    @pytest.mark.asyncio
+    async def test_delete_raises_when_last_workspace(
+        self,
+        service: WorkspaceService,
+        uow: FakeUnitOfWork,
+        workspace_id: UUID,
+        user_id: UUID,
+        sample_workspace: Workspace,
+    ) -> None:
+        uow.workspaces.get.return_value = sample_workspace
+        uow.workspaces.get_member.return_value = WorkspaceMember(
+            workspace_id=workspace_id, user_id=user_id, role=WorkspaceRole.OWNER
+        )
+        uow.workspaces.count_user_workspaces.return_value = 1
+
+        with pytest.raises(LastWorkspaceError):
+            await service.delete(workspace_id=workspace_id, user_id=user_id)
+
+    @pytest.mark.asyncio
+    async def test_delete_succeeds_when_user_has_other_workspaces(
+        self,
+        service: WorkspaceService,
+        uow: FakeUnitOfWork,
+        workspace_id: UUID,
+        user_id: UUID,
+        sample_workspace: Workspace,
+    ) -> None:
+        uow.workspaces.get.return_value = sample_workspace
+        uow.workspaces.get_member.return_value = WorkspaceMember(
+            workspace_id=workspace_id, user_id=user_id, role=WorkspaceRole.OWNER
+        )
+        uow.workspaces.count_user_workspaces.return_value = 2
+        uow.workspaces.delete.return_value = True
+
+        result = await service.delete(workspace_id=workspace_id, user_id=user_id)
+
+        assert result is True
+        assert uow.committed
+
+    @pytest.mark.asyncio
+    async def test_self_leave_raises_when_last_workspace(
+        self,
+        service: WorkspaceService,
+        uow: FakeUnitOfWork,
+        workspace_id: UUID,
+        user_id: UUID,
+        sample_workspace: Workspace,
+    ) -> None:
+        uow.workspaces.get.return_value = sample_workspace
+        uow.workspaces.get_member.side_effect = [
+            WorkspaceMember(workspace_id=workspace_id, user_id=user_id, role=WorkspaceRole.MEMBER),
+            WorkspaceMember(workspace_id=workspace_id, user_id=user_id, role=WorkspaceRole.MEMBER),
+        ]
+        uow.workspaces.count_user_workspaces.return_value = 1
+
+        with pytest.raises(LastWorkspaceError):
+            await service.remove_member(
+                workspace_id=workspace_id, user_id=user_id, target_user_id=user_id
+            )
+
+    @pytest.mark.asyncio
+    async def test_self_leave_succeeds_when_user_has_other_workspaces(
+        self,
+        service: WorkspaceService,
+        uow: FakeUnitOfWork,
+        workspace_id: UUID,
+        user_id: UUID,
+        sample_workspace: Workspace,
+    ) -> None:
+        uow.workspaces.get.return_value = sample_workspace
+        uow.workspaces.get_member.side_effect = [
+            WorkspaceMember(workspace_id=workspace_id, user_id=user_id, role=WorkspaceRole.MEMBER),
+            WorkspaceMember(workspace_id=workspace_id, user_id=user_id, role=WorkspaceRole.MEMBER),
+        ]
+        uow.workspaces.count_user_workspaces.return_value = 2
+        uow.workspaces.remove_member.return_value = True
+
+        result = await service.remove_member(
+            workspace_id=workspace_id, user_id=user_id, target_user_id=user_id
+        )
+
+        assert result is True
+        assert uow.committed

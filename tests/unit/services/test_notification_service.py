@@ -1,6 +1,7 @@
 """Unit tests for Notification service layer."""
 
 from datetime import datetime, timedelta
+from typing import Any
 from unittest.mock import AsyncMock
 from uuid import UUID, uuid4
 
@@ -24,7 +25,7 @@ from domain.services.notification_service import (
 class FakeNotificationRepo:
     """Fake notification repository for testing."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.get_type_by_name = AsyncMock()
         self.get_all_types = AsyncMock(return_value=[])
         self.create = AsyncMock()
@@ -47,22 +48,22 @@ class FakeNotificationRepo:
 class FakeUnitOfWork:
     """Fake Unit of Work for testing."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.notifications = FakeNotificationRepo()
         self.workspaces = AsyncMock()
         self.committed = False
         self.rolled_back = False
 
-    async def commit(self):
+    async def commit(self) -> None:
         self.committed = True
 
-    async def rollback(self):
+    async def rollback(self) -> None:
         self.rolled_back = True
 
-    async def __aenter__(self):
+    async def __aenter__(self) -> "FakeUnitOfWork":
         return self
 
-    async def __aexit__(self, *args):
+    async def __aexit__(self, *args: Any) -> None:
         pass
 
 
@@ -121,7 +122,7 @@ class TestNotifyCreation:
         actor_id: UUID,
         workspace_id: UUID,
         sample_type: NotificationType,
-    ):
+    ) -> None:
         """notify() creates notification + batch recipient records."""
         recipient_1 = uuid4()
         recipient_2 = uuid4()
@@ -165,7 +166,7 @@ class TestNotifyCreation:
         actor_id: UUID,
         workspace_id: UUID,
         sample_type: NotificationType,
-    ):
+    ) -> None:
         """notify() removes the actor from the recipient list."""
         other_user = uuid4()
         entity_id = uuid4()
@@ -202,7 +203,7 @@ class TestNotifyCreation:
         uow: FakeUnitOfWork,
         actor_id: UUID,
         workspace_id: UUID,
-    ):
+    ) -> None:
         """notify() returns None when notification type doesn't exist."""
         uow.notifications.get_type_by_name.return_value = None
 
@@ -227,7 +228,7 @@ class TestNotifyCreation:
         actor_id: UUID,
         workspace_id: UUID,
         sample_type: NotificationType,
-    ):
+    ) -> None:
         """notify() returns None when only recipient is the actor."""
         uow.notifications.get_type_by_name.return_value = sample_type
 
@@ -256,7 +257,7 @@ class TestNotifyPreferences:
         actor_id: UUID,
         workspace_id: UUID,
         sample_type: NotificationType,
-    ):
+    ) -> None:
         """notify() filters out users who opted out via preferences."""
         opted_in_user = uuid4()
         opted_out_user = uuid4()
@@ -265,8 +266,10 @@ class TestNotifyPreferences:
         uow.notifications.get_type_by_name.return_value = sample_type
 
         # should_notify returns False for opted_out_user
-        async def mock_should_notify(user_id, ws_id, type_name, channel):
-            return user_id != opted_out_user
+        async def mock_should_notify(
+            user_id: Any, ws_id: Any, type_name: Any, channel: Any
+        ) -> bool:
+            return bool(user_id != opted_out_user)
 
         uow.notifications.should_notify.side_effect = mock_should_notify
 
@@ -302,7 +305,7 @@ class TestNotifyPreferences:
         actor_id: UUID,
         workspace_id: UUID,
         mandatory_type: NotificationType,
-    ):
+    ) -> None:
         """notify() skips preference check for mandatory notification types."""
         recipient = uuid4()
         entity_id = uuid4()
@@ -339,7 +342,7 @@ class TestNotifyPreferences:
         actor_id: UUID,
         workspace_id: UUID,
         sample_type: NotificationType,
-    ):
+    ) -> None:
         """notify() returns None if all non-actor recipients opted out."""
         opted_out_user = uuid4()
 
@@ -371,7 +374,7 @@ class TestNotifyDeduplication:
         actor_id: UUID,
         workspace_id: UUID,
         sample_type: NotificationType,
-    ):
+    ) -> None:
         """notify() returns None when recent duplicate exists within 5-min window."""
         entity_id = uuid4()
         recipient = uuid4()
@@ -408,7 +411,7 @@ class TestNotifyDeduplication:
         actor_id: UUID,
         workspace_id: UUID,
         mandatory_type: NotificationType,
-    ):
+    ) -> None:
         """notify() does NOT check deduplication for mandatory notifications."""
         entity_id = uuid4()
         recipient = uuid4()
@@ -448,7 +451,7 @@ class TestNotifyExpiry:
         actor_id: UUID,
         workspace_id: UUID,
         sample_type: NotificationType,
-    ):
+    ) -> None:
         """notify() sets expires_at to 90 days from creation."""
         recipient = uuid4()
         entity_id = uuid4()
@@ -456,9 +459,9 @@ class TestNotifyExpiry:
         uow.notifications.get_type_by_name.return_value = sample_type
 
         # Capture the notification passed to create()
-        created_notif = None
+        created_notif: Notification | None = None
 
-        async def capture_create(notif):
+        async def capture_create(notif: Notification) -> Notification:
             nonlocal created_notif
             created_notif = notif
             return notif
@@ -493,7 +496,7 @@ class TestGetNotifications:
         self,
         service: NotificationService,
         uow: FakeUnitOfWork,
-    ):
+    ) -> None:
         """get_notifications() returns formatted list with unread count."""
         user_id = uuid4()
         workspace_id = uuid4()
@@ -537,7 +540,7 @@ class TestGetNotifications:
         self,
         service: NotificationService,
         uow: FakeUnitOfWork,
-    ):
+    ) -> None:
         """get_notifications() passes cursor and limit to repository."""
         user_id = uuid4()
         cursor = uuid4()
@@ -563,7 +566,7 @@ class TestGetUnreadCount:
         self,
         service: NotificationService,
         uow: FakeUnitOfWork,
-    ):
+    ) -> None:
         """get_unread_count() delegates to repository."""
         user_id = uuid4()
         uow.notifications.get_unread_count.return_value = 5
@@ -582,7 +585,7 @@ class TestMarkRead:
         self,
         service: NotificationService,
         uow: FakeUnitOfWork,
-    ):
+    ) -> None:
         """mark_read() calls repository and commits."""
         user_id = uuid4()
         recipient_id = uuid4()
@@ -599,7 +602,7 @@ class TestMarkRead:
         self,
         service: NotificationService,
         uow: FakeUnitOfWork,
-    ):
+    ) -> None:
         """mark_read() raises NotificationRecipientNotFoundError on failure."""
         uow.notifications.mark_read.return_value = False
 
@@ -613,7 +616,7 @@ class TestMarkUnread:
         self,
         service: NotificationService,
         uow: FakeUnitOfWork,
-    ):
+    ) -> None:
         """mark_unread() calls repository and commits."""
         user_id = uuid4()
         recipient_id = uuid4()
@@ -630,7 +633,7 @@ class TestMarkUnread:
         self,
         service: NotificationService,
         uow: FakeUnitOfWork,
-    ):
+    ) -> None:
         """mark_unread() raises NotificationRecipientNotFoundError on failure."""
         uow.notifications.mark_unread.return_value = False
 
@@ -644,7 +647,7 @@ class TestMarkAllRead:
         self,
         service: NotificationService,
         uow: FakeUnitOfWork,
-    ):
+    ) -> None:
         """mark_all_read() returns count and commits."""
         user_id = uuid4()
         workspace_id = uuid4()
@@ -666,7 +669,7 @@ class TestDeleteNotification:
         self,
         service: NotificationService,
         uow: FakeUnitOfWork,
-    ):
+    ) -> None:
         """delete_notification() calls soft_delete and commits."""
         user_id = uuid4()
         recipient_id = uuid4()
@@ -683,7 +686,7 @@ class TestDeleteNotification:
         self,
         service: NotificationService,
         uow: FakeUnitOfWork,
-    ):
+    ) -> None:
         """delete_notification() raises NotificationRecipientNotFoundError on failure."""
         uow.notifications.soft_delete.return_value = False
 
@@ -700,7 +703,7 @@ class TestGetPreferences:
         self,
         service: NotificationService,
         uow: FakeUnitOfWork,
-    ):
+    ) -> None:
         """get_preferences() returns list from repository."""
         user_id = uuid4()
         prefs = [
@@ -722,7 +725,7 @@ class TestUpdatePreference:
         self,
         service: NotificationService,
         uow: FakeUnitOfWork,
-    ):
+    ) -> None:
         """update_preference() upserts and commits."""
         user_id = uuid4()
         workspace_id = uuid4()
@@ -755,7 +758,7 @@ class TestGetNotificationTypes:
         self,
         service: NotificationService,
         uow: FakeUnitOfWork,
-    ):
+    ) -> None:
         """get_notification_types() returns all types from repository."""
         types = [
             NotificationType(name="task.completed", template="test1"),
@@ -778,7 +781,7 @@ class TestCleanupExpired:
         self,
         service: NotificationService,
         uow: FakeUnitOfWork,
-    ):
+    ) -> None:
         """cleanup_expired() calls delete_expired and commits."""
         uow.notifications.delete_expired.return_value = 42
 

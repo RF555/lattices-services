@@ -1,5 +1,6 @@
 """Shared fixtures for unit tests."""
 
+from typing import Any
 from unittest.mock import AsyncMock
 from uuid import UUID, uuid4
 
@@ -9,7 +10,7 @@ import pytest
 class FakeUnitOfWork:
     """Fake Unit of Work with all 7 repository mocks for unit testing."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.todos = AsyncMock()
         self.tags = AsyncMock()
         self.workspaces = AsyncMock()
@@ -20,16 +21,16 @@ class FakeUnitOfWork:
         self.committed = False
         self.rolled_back = False
 
-    async def commit(self):
+    async def commit(self) -> None:
         self.committed = True
 
-    async def rollback(self):
+    async def rollback(self) -> None:
         self.rolled_back = True
 
-    async def __aenter__(self):
+    async def __aenter__(self) -> "FakeUnitOfWork":
         return self
 
-    async def __aexit__(self, *args):
+    async def __aexit__(self, *args: Any) -> None:
         pass
 
 

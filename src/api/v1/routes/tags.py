@@ -5,7 +5,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query, Request, status
 
-from api.dependencies.auth import CurrentUser
+from api.dependencies.auth import CurrentUser, InitializedUser
 from api.v1.dependencies import get_tag_service
 from api.v1.schemas.tag import (
     TagCreate,
@@ -30,7 +30,7 @@ router = APIRouter(prefix="/tags", tags=["tags"])
 @limiter.limit("30/minute")  # type: ignore[untyped-decorator]
 async def list_tags(
     request: Request,
-    user: CurrentUser,
+    user: InitializedUser,
     service: TagService = Depends(get_tag_service),
     workspace_id: UUID | None = Query(None, description="Filter by workspace ID"),
 ) -> TagListResponse:
@@ -65,7 +65,7 @@ async def list_tags(
 async def create_tag(
     request: Request,
     body: TagCreate,
-    user: CurrentUser,
+    user: InitializedUser,
     service: TagService = Depends(get_tag_service),
 ) -> TagDetailResponse:
     """Create a new tag. Tag names must be unique per user."""

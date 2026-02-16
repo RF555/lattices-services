@@ -9,24 +9,20 @@ from api.middleware.security import SecurityHeadersMiddleware
 
 
 def _create_app_with_middleware() -> FastAPI:
-    """Create a minimal FastAPI app with security and request ID middleware."""
     app = FastAPI()
     app.add_middleware(SecurityHeadersMiddleware)
     app.add_middleware(RequestIDMiddleware)
 
     @app.get("/test")
-    async def _():
+    async def _() -> dict[str, bool]:
         return {"ok": True}
 
     return app
 
 
 class TestSecurityHeadersMiddleware:
-    """Tests for SecurityHeadersMiddleware."""
-
     @pytest.mark.asyncio
-    async def test_adds_x_content_type_options(self):
-        """Response includes X-Content-Type-Options: nosniff."""
+    async def test_adds_x_content_type_options(self) -> None:
         app = _create_app_with_middleware()
         transport = ASGITransport(app=app)
         async with AsyncClient(transport=transport, base_url="http://test") as c:
@@ -35,8 +31,7 @@ class TestSecurityHeadersMiddleware:
         assert response.headers["x-content-type-options"] == "nosniff"
 
     @pytest.mark.asyncio
-    async def test_adds_x_frame_options(self):
-        """Response includes X-Frame-Options: DENY."""
+    async def test_adds_x_frame_options(self) -> None:
         app = _create_app_with_middleware()
         transport = ASGITransport(app=app)
         async with AsyncClient(transport=transport, base_url="http://test") as c:
@@ -45,8 +40,7 @@ class TestSecurityHeadersMiddleware:
         assert response.headers["x-frame-options"] == "DENY"
 
     @pytest.mark.asyncio
-    async def test_adds_referrer_policy(self):
-        """Response includes Referrer-Policy header."""
+    async def test_adds_referrer_policy(self) -> None:
         app = _create_app_with_middleware()
         transport = ASGITransport(app=app)
         async with AsyncClient(transport=transport, base_url="http://test") as c:
@@ -56,11 +50,8 @@ class TestSecurityHeadersMiddleware:
 
 
 class TestRequestIDMiddleware:
-    """Tests for RequestIDMiddleware."""
-
     @pytest.mark.asyncio
-    async def test_generates_request_id_when_not_provided(self):
-        """Response includes a generated X-Request-ID header."""
+    async def test_generates_request_id_when_not_provided(self) -> None:
         app = _create_app_with_middleware()
         transport = ASGITransport(app=app)
         async with AsyncClient(transport=transport, base_url="http://test") as c:
@@ -70,8 +61,7 @@ class TestRequestIDMiddleware:
         assert len(response.headers["x-request-id"]) > 0
 
     @pytest.mark.asyncio
-    async def test_propagates_existing_request_id(self):
-        """Provided X-Request-ID is propagated to response."""
+    async def test_propagates_existing_request_id(self) -> None:
         app = _create_app_with_middleware()
         transport = ASGITransport(app=app)
         async with AsyncClient(transport=transport, base_url="http://test") as c:
@@ -80,8 +70,7 @@ class TestRequestIDMiddleware:
         assert response.headers["x-request-id"] == "custom-req-123"
 
     @pytest.mark.asyncio
-    async def test_request_id_in_response_header(self):
-        """X-Request-ID is always present in the response."""
+    async def test_request_id_in_response_header(self) -> None:
         app = _create_app_with_middleware()
         transport = ASGITransport(app=app)
         async with AsyncClient(transport=transport, base_url="http://test") as c:

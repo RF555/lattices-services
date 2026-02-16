@@ -4,7 +4,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query, Request, status
 
-from api.dependencies.auth import CurrentUser
+from api.dependencies.auth import CurrentUser, InitializedUser
 from api.v1.dependencies import get_tag_service, get_todo_service
 from api.v1.schemas.todo import (
     TagSummary,
@@ -35,7 +35,7 @@ router = APIRouter(prefix="/todos", tags=["todos"])
 @limiter.limit("30/minute")  # type: ignore[untyped-decorator]
 async def list_todos(
     request: Request,
-    user: CurrentUser,
+    user: InitializedUser,
     todo_service: TodoService = Depends(get_todo_service),
     tag_service: TagService = Depends(get_tag_service),
     include_completed: bool = Query(True, description="Include completed todos"),
@@ -120,7 +120,7 @@ async def get_todo(
 async def create_todo(
     request: Request,
     body: TodoCreate,
-    user: CurrentUser,
+    user: InitializedUser,
     service: TodoService = Depends(get_todo_service),
 ) -> TodoDetailResponse:
     """

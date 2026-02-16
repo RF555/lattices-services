@@ -10,7 +10,7 @@ class TestTagsAPI:
     """Integration tests for Tag CRUD."""
 
     @pytest.mark.asyncio
-    async def test_create_tag(self, authenticated_client: AsyncClient):
+    async def test_create_tag(self, authenticated_client: AsyncClient) -> None:
         """Test POST /api/v1/tags."""
         response = await authenticated_client.post(
             "/api/v1/tags",
@@ -24,7 +24,7 @@ class TestTagsAPI:
         assert "id" in data
 
     @pytest.mark.asyncio
-    async def test_create_tag_default_color(self, authenticated_client: AsyncClient):
+    async def test_create_tag_default_color(self, authenticated_client: AsyncClient) -> None:
         """Test creating tag with default color."""
         response = await authenticated_client.post(
             "/api/v1/tags",
@@ -35,7 +35,7 @@ class TestTagsAPI:
         assert response.json()["data"]["color_hex"] == "#3B82F6"
 
     @pytest.mark.asyncio
-    async def test_create_duplicate_tag(self, authenticated_client: AsyncClient):
+    async def test_create_duplicate_tag(self, authenticated_client: AsyncClient) -> None:
         """Test creating tag with duplicate name returns 409."""
         await authenticated_client.post("/api/v1/tags", json={"name": "duplicate-test"})
         response = await authenticated_client.post("/api/v1/tags", json={"name": "duplicate-test"})
@@ -44,7 +44,7 @@ class TestTagsAPI:
         assert response.json()["error_code"] == "DUPLICATE_TAG"
 
     @pytest.mark.asyncio
-    async def test_list_tags(self, authenticated_client: AsyncClient):
+    async def test_list_tags(self, authenticated_client: AsyncClient) -> None:
         """Test GET /api/v1/tags."""
         await authenticated_client.post("/api/v1/tags", json={"name": "list-tag-1"})
         await authenticated_client.post("/api/v1/tags", json={"name": "list-tag-2"})
@@ -55,7 +55,7 @@ class TestTagsAPI:
         assert len(response.json()["data"]) >= 2
 
     @pytest.mark.asyncio
-    async def test_update_tag_name(self, authenticated_client: AsyncClient):
+    async def test_update_tag_name(self, authenticated_client: AsyncClient) -> None:
         """Test PATCH /api/v1/tags/{id}."""
         create = await authenticated_client.post("/api/v1/tags", json={"name": "old-name"})
         tag_id = create.json()["data"]["id"]
@@ -69,7 +69,7 @@ class TestTagsAPI:
         assert response.json()["data"]["name"] == "new-name"
 
     @pytest.mark.asyncio
-    async def test_update_tag_color(self, authenticated_client: AsyncClient):
+    async def test_update_tag_color(self, authenticated_client: AsyncClient) -> None:
         """Test updating tag color."""
         create = await authenticated_client.post("/api/v1/tags", json={"name": "color-update"})
         tag_id = create.json()["data"]["id"]
@@ -83,7 +83,7 @@ class TestTagsAPI:
         assert response.json()["data"]["color_hex"] == "#FF0000"
 
     @pytest.mark.asyncio
-    async def test_delete_tag(self, authenticated_client: AsyncClient):
+    async def test_delete_tag(self, authenticated_client: AsyncClient) -> None:
         """Test DELETE /api/v1/tags/{id}."""
         create = await authenticated_client.post("/api/v1/tags", json={"name": "to-delete-tag"})
         tag_id = create.json()["data"]["id"]
@@ -92,7 +92,7 @@ class TestTagsAPI:
         assert response.status_code == 204
 
     @pytest.mark.asyncio
-    async def test_delete_nonexistent_tag(self, authenticated_client: AsyncClient):
+    async def test_delete_nonexistent_tag(self, authenticated_client: AsyncClient) -> None:
         """Test deleting non-existent tag."""
         response = await authenticated_client.delete(f"/api/v1/tags/{uuid4()}")
         assert response.status_code == 404
@@ -102,7 +102,7 @@ class TestTodoTagsAPI:
     """Integration tests for Todo-Tag relationships."""
 
     @pytest.mark.asyncio
-    async def test_attach_tag_to_todo(self, authenticated_client: AsyncClient):
+    async def test_attach_tag_to_todo(self, authenticated_client: AsyncClient) -> None:
         """Test POST /api/v1/todos/{id}/tags."""
         # Create tag and todo
         tag = await authenticated_client.post("/api/v1/tags", json={"name": "attach-test"})
@@ -122,7 +122,7 @@ class TestTodoTagsAPI:
         assert response.json()["todo_id"] == todo_id
 
     @pytest.mark.asyncio
-    async def test_get_todo_tags(self, authenticated_client: AsyncClient):
+    async def test_get_todo_tags(self, authenticated_client: AsyncClient) -> None:
         """Test GET /api/v1/todos/{id}/tags."""
         # Create tag and todo
         tag = await authenticated_client.post("/api/v1/tags", json={"name": "get-todo-tags-test"})
@@ -145,7 +145,7 @@ class TestTodoTagsAPI:
         assert response.json()["data"][0]["name"] == "get-todo-tags-test"
 
     @pytest.mark.asyncio
-    async def test_detach_tag_from_todo(self, authenticated_client: AsyncClient):
+    async def test_detach_tag_from_todo(self, authenticated_client: AsyncClient) -> None:
         """Test DELETE /api/v1/todos/{id}/tags/{tag_id}."""
         # Create and attach
         tag = await authenticated_client.post("/api/v1/tags", json={"name": "detach-test"})
@@ -168,7 +168,7 @@ class TestTodoTagsAPI:
         assert len(tags.json()["data"]) == 0
 
     @pytest.mark.asyncio
-    async def test_todo_includes_tags(self, authenticated_client: AsyncClient):
+    async def test_todo_includes_tags(self, authenticated_client: AsyncClient) -> None:
         """Test that todo list includes tags."""
         # Create tag and todo
         tag = await authenticated_client.post("/api/v1/tags", json={"name": "included-tag"})
@@ -192,7 +192,7 @@ class TestTodoTagsAPI:
         assert data["tags"][0]["name"] == "included-tag"
 
     @pytest.mark.asyncio
-    async def test_filter_todos_by_tag(self, authenticated_client: AsyncClient):
+    async def test_filter_todos_by_tag(self, authenticated_client: AsyncClient) -> None:
         """Test filtering todos by tag_id query parameter."""
         # Create tag
         tag = await authenticated_client.post("/api/v1/tags", json={"name": "filter-tag"})

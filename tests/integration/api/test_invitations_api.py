@@ -1,10 +1,11 @@
 """Integration tests for Invitations API."""
 
+from collections.abc import AsyncGenerator
 from uuid import uuid4
 
 import pytest
 from httpx import ASGITransport, AsyncClient
-from sqlalchemy.ext.asyncio import async_sessionmaker
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from infrastructure.auth.jwt_provider import JWTAuthProvider
 from infrastructure.auth.provider import TokenUser
@@ -13,10 +14,10 @@ from infrastructure.database.models import ProfileModel
 
 @pytest.fixture
 async def invitation_client(
-    session_factory: async_sessionmaker,
+    session_factory: async_sessionmaker[AsyncSession],
     test_user: TokenUser,
     auth_provider: JWTAuthProvider,
-):
+) -> AsyncGenerator[AsyncClient, None]:
     """Create a test client with invitation services wired up."""
     from api.dependencies.auth import get_auth_provider, get_current_user
     from api.v1.dependencies import (
@@ -52,13 +53,13 @@ async def invitation_client(
             session.add(profile)
             await session.commit()
 
-    async def override_get_user():
+    async def override_get_user() -> TokenUser:
         return test_user
 
-    def override_get_auth_provider():
+    def override_get_auth_provider() -> JWTAuthProvider:
         return auth_provider
 
-    def test_uow_factory():
+    def test_uow_factory() -> SQLAlchemyUnitOfWork:
         return SQLAlchemyUnitOfWork(session_factory)
 
     activity_service = ActivityService(test_uow_factory)
@@ -87,14 +88,16 @@ async def inv_workspace_id(invitation_client: AsyncClient) -> str:
     unique_name = f"Invitation Test WS {uuid4().hex[:8]}"
     response = await invitation_client.post("/api/v1/workspaces", json={"name": unique_name})
     assert response.status_code == 201, f"Workspace creation failed: {response.json()}"
-    return response.json()["data"]["id"]
+    return str(response.json()["data"]["id"])
 
 
 class TestInvitationCreation:
     """Tests for creating invitations."""
 
     @pytest.mark.asyncio
-    async def test_create_invitation(self, invitation_client: AsyncClient, inv_workspace_id: str):
+    async def test_create_invitation(
+        self, invitation_client: AsyncClient, inv_workspace_id: str
+    ) -> None:
         """POST /api/v1/workspaces/{ws}/invitations returns 201 with token."""
         response = await invitation_client.post(
             f"/api/v1/workspaces/{inv_workspace_id}/invitations",
@@ -110,7 +113,7 @@ class TestInvitationCreation:
     @pytest.mark.asyncio
     async def test_create_duplicate_invitation(
         self, invitation_client: AsyncClient, inv_workspace_id: str
-    ):
+    ) -> None:
         """Creating duplicate invitation for same email returns 409."""
         email = f"dup-inv-{uuid4()}@example.com"
 
@@ -133,7 +136,7 @@ class TestInvitationListing:
     @pytest.mark.asyncio
     async def test_list_workspace_invitations(
         self, invitation_client: AsyncClient, inv_workspace_id: str
-    ):
+    ) -> None:
         """GET /api/v1/workspaces/{ws}/invitations returns list."""
         await invitation_client.post(
             f"/api/v1/workspaces/{inv_workspace_id}/invitations",
@@ -146,7 +149,7 @@ class TestInvitationListing:
         assert len(response.json()["data"]) >= 1
 
     @pytest.mark.asyncio
-    async def test_get_pending_invitations(self, invitation_client: AsyncClient):
+    async def test_get_pending_invitations(self, invitation_client: AsyncClient) -> None:
         """GET /api/v1/invitations/pending returns user's pending invitations."""
         response = await invitation_client.get("/api/v1/invitations/pending")
 
@@ -162,10 +165,10 @@ class TestInvitationAccept:
         self,
         invitation_client: AsyncClient,
         inv_workspace_id: str,
-        session_factory: async_sessionmaker,
+        session_factory: async_sessionmaker[AsyncSession],
         test_user: TokenUser,
         auth_provider: JWTAuthProvider,
-    ):
+    ) -> None:
         """Full accept flow: create invite, accept with matching email user."""
         # Create invitation for test user's email
         create_resp = await invitation_client.post(
@@ -211,10 +214,10 @@ class TestInvitationAccept:
 
         app2 = create_app()
 
-        async def override_get_user2():
+        async def override_get_user2() -> TokenUser:
             return second_user
 
-        def test_uow_factory():
+        def test_uow_factory() -> SQLAlchemyUnitOfWork:
             return SQLAlchemyUnitOfWork(session_factory)
 
         activity_service = ActivityService(test_uow_factory)
@@ -249,10 +252,10 @@ class TestInvitationAccept:
         self,
         invitation_client: AsyncClient,
         inv_workspace_id: str,
-        session_factory: async_sessionmaker,
+        session_factory: async_sessionmaker[AsyncSession],
         test_user: TokenUser,
         auth_provider: JWTAuthProvider,
-    ):
+    ) -> None:
         """Full accept-by-ID flow: create invite, accept by invitation ID."""
         # Create invitation for a specific email
         create_resp = await invitation_client.post(
@@ -298,10 +301,10 @@ class TestInvitationAccept:
 
         app2 = create_app()
 
-        async def override_get_user2():
+        async def override_get_user2() -> TokenUser:
             return second_user
 
-        def test_uow_factory():
+        def test_uow_factory() -> SQLAlchemyUnitOfWork:
             return SQLAlchemyUnitOfWork(session_factory)
 
         activity_service = ActivityService(test_uow_factory)
@@ -329,7 +332,7 @@ class TestInvitationAccept:
         app2.dependency_overrides.clear()
 
     @pytest.mark.asyncio
-    async def test_accept_by_id_nonexistent(self, invitation_client: AsyncClient):
+    async def test_accept_by_id_nonexistent(self, invitation_client: AsyncClient) -> None:
         """Accepting with non-existent invitation ID returns 404."""
         response = await invitation_client.post(
             f"/api/v1/invitations/{uuid4()}/accept",
@@ -338,7 +341,7 @@ class TestInvitationAccept:
         assert response.status_code == 404
 
     @pytest.mark.asyncio
-    async def test_accept_with_invalid_token(self, invitation_client: AsyncClient):
+    async def test_accept_with_invalid_token(self, invitation_client: AsyncClient) -> None:
         """Accepting with bad token returns 404."""
         response = await invitation_client.post(
             "/api/v1/invitations/accept",
@@ -352,7 +355,9 @@ class TestInvitationRevoke:
     """Tests for revoking invitations."""
 
     @pytest.mark.asyncio
-    async def test_revoke_invitation(self, invitation_client: AsyncClient, inv_workspace_id: str):
+    async def test_revoke_invitation(
+        self, invitation_client: AsyncClient, inv_workspace_id: str
+    ) -> None:
         """DELETE /api/v1/workspaces/{ws}/invitations/{id} revokes invitation."""
         create_resp = await invitation_client.post(
             f"/api/v1/workspaces/{inv_workspace_id}/invitations",
@@ -367,7 +372,9 @@ class TestInvitationRevoke:
         assert response.status_code == 204
 
     @pytest.mark.asyncio
-    async def test_revoke_nonexistent(self, invitation_client: AsyncClient, inv_workspace_id: str):
+    async def test_revoke_nonexistent(
+        self, invitation_client: AsyncClient, inv_workspace_id: str
+    ) -> None:
         """Revoking nonexistent invitation returns 404."""
         response = await invitation_client.delete(
             f"/api/v1/workspaces/{inv_workspace_id}/invitations/{uuid4()}"

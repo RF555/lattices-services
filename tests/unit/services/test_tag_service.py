@@ -28,7 +28,9 @@ def service(uow: FakeUnitOfWork) -> TagService:
 
 class TestGetAllForUser:
     @pytest.mark.asyncio
-    async def test_returns_user_tags(self, service: TagService, uow: FakeUnitOfWork, user_id: UUID):
+    async def test_returns_user_tags(
+        self, service: TagService, uow: FakeUnitOfWork, user_id: UUID
+    ) -> None:
         tag = Tag(user_id=user_id, name="Bug")
         uow.tags.get_all_for_user.return_value = [tag]
         uow.tags.get_usage_counts_batch.return_value = {tag.id: 3}
@@ -42,7 +44,7 @@ class TestGetAllForUser:
     @pytest.mark.asyncio
     async def test_returns_workspace_tags(
         self, service: TagService, uow: FakeUnitOfWork, user_id: UUID, workspace_id: UUID
-    ):
+    ) -> None:
         uow.workspaces.get_member.return_value = WorkspaceMember(
             workspace_id=workspace_id, user_id=user_id, role=WorkspaceRole.VIEWER
         )
@@ -63,7 +65,7 @@ class TestCreate:
     @pytest.mark.asyncio
     async def test_creates_tag_for_user(
         self, service: TagService, uow: FakeUnitOfWork, user_id: UUID
-    ):
+    ) -> None:
         uow.tags.get_by_name.return_value = None
         created_tag = Tag(user_id=user_id, name="New Tag")
         uow.tags.create.return_value = created_tag
@@ -77,7 +79,7 @@ class TestCreate:
     @pytest.mark.asyncio
     async def test_creates_workspace_tag(
         self, service: TagService, uow: FakeUnitOfWork, user_id: UUID, workspace_id: UUID
-    ):
+    ) -> None:
         uow.workspaces.get_member.return_value = WorkspaceMember(
             workspace_id=workspace_id, user_id=user_id, role=WorkspaceRole.MEMBER
         )
@@ -91,7 +93,9 @@ class TestCreate:
         assert uow.committed
 
     @pytest.mark.asyncio
-    async def test_raises_duplicate(self, service: TagService, uow: FakeUnitOfWork, user_id: UUID):
+    async def test_raises_duplicate(
+        self, service: TagService, uow: FakeUnitOfWork, user_id: UUID
+    ) -> None:
         uow.tags.get_by_name.return_value = Tag(user_id=user_id, name="Existing")
 
         with pytest.raises(AppException) as exc_info:
@@ -105,7 +109,9 @@ class TestCreate:
 
 class TestUpdate:
     @pytest.mark.asyncio
-    async def test_updates_tag_name(self, service: TagService, uow: FakeUnitOfWork, user_id: UUID):
+    async def test_updates_tag_name(
+        self, service: TagService, uow: FakeUnitOfWork, user_id: UUID
+    ) -> None:
         tag = Tag(user_id=user_id, name="Old")
         uow.tags.get.return_value = tag
         uow.tags.get_by_name.return_value = None
@@ -118,7 +124,7 @@ class TestUpdate:
     @pytest.mark.asyncio
     async def test_raises_not_found_for_wrong_user(
         self, service: TagService, uow: FakeUnitOfWork, user_id: UUID
-    ):
+    ) -> None:
         other_user = uuid4()
         tag = Tag(user_id=other_user, name="Private")
         uow.tags.get.return_value = tag
@@ -129,7 +135,7 @@ class TestUpdate:
     @pytest.mark.asyncio
     async def test_raises_duplicate_on_rename(
         self, service: TagService, uow: FakeUnitOfWork, user_id: UUID
-    ):
+    ) -> None:
         tag = Tag(user_id=user_id, name="Original")
         uow.tags.get.return_value = tag
         uow.tags.get_by_name.return_value = Tag(user_id=user_id, name="Taken")
@@ -145,7 +151,9 @@ class TestUpdate:
 
 class TestDelete:
     @pytest.mark.asyncio
-    async def test_deletes_tag(self, service: TagService, uow: FakeUnitOfWork, user_id: UUID):
+    async def test_deletes_tag(
+        self, service: TagService, uow: FakeUnitOfWork, user_id: UUID
+    ) -> None:
         tag = Tag(user_id=user_id, name="ToDelete")
         uow.tags.get.return_value = tag
         uow.tags.delete.return_value = True
@@ -156,7 +164,9 @@ class TestDelete:
         assert uow.committed
 
     @pytest.mark.asyncio
-    async def test_raises_not_found(self, service: TagService, uow: FakeUnitOfWork, user_id: UUID):
+    async def test_raises_not_found(
+        self, service: TagService, uow: FakeUnitOfWork, user_id: UUID
+    ) -> None:
         uow.tags.get.return_value = None
 
         with pytest.raises(TagNotFoundError):
@@ -170,7 +180,7 @@ class TestAttachDetach:
     @pytest.mark.asyncio
     async def test_attach_tag_to_todo(
         self, service: TagService, uow: FakeUnitOfWork, user_id: UUID
-    ):
+    ) -> None:
         tag = Tag(user_id=user_id, name="Priority")
         todo = Todo(user_id=user_id, title="Task")
         uow.tags.get.return_value = tag
@@ -184,7 +194,7 @@ class TestAttachDetach:
     @pytest.mark.asyncio
     async def test_attach_raises_tag_not_found(
         self, service: TagService, uow: FakeUnitOfWork, user_id: UUID
-    ):
+    ) -> None:
         uow.tags.get.return_value = None
 
         with pytest.raises(TagNotFoundError):
@@ -193,7 +203,7 @@ class TestAttachDetach:
     @pytest.mark.asyncio
     async def test_detach_tag_from_todo(
         self, service: TagService, uow: FakeUnitOfWork, user_id: UUID
-    ):
+    ) -> None:
         tag = Tag(user_id=user_id, name="Priority")
         todo = Todo(user_id=user_id, title="Task")
         uow.tags.get.return_value = tag
@@ -210,7 +220,9 @@ class TestAttachDetach:
 
 class TestBatch:
     @pytest.mark.asyncio
-    async def test_empty_input_returns_empty(self, service: TagService, uow: FakeUnitOfWork):
+    async def test_empty_input_returns_empty(
+        self, service: TagService, uow: FakeUnitOfWork
+    ) -> None:
         result = await service.get_tags_for_todos_batch([])
 
         assert result == {}
@@ -228,7 +240,7 @@ class TestGetByIdWorkspace:
     @pytest.mark.asyncio
     async def test_should_return_tag_when_user_is_workspace_member(
         self, service: TagService, uow: FakeUnitOfWork, user_id: UUID, workspace_id: UUID
-    ):
+    ) -> None:
         tag = Tag(user_id=uuid4(), name="WS Tag", workspace_id=workspace_id)
         uow.tags.get.return_value = tag
         uow.workspaces.get_member.return_value = WorkspaceMember(
@@ -243,7 +255,7 @@ class TestGetByIdWorkspace:
     @pytest.mark.asyncio
     async def test_should_raise_not_found_when_user_is_not_workspace_member(
         self, service: TagService, uow: FakeUnitOfWork, user_id: UUID, workspace_id: UUID
-    ):
+    ) -> None:
         tag = Tag(user_id=uuid4(), name="WS Tag", workspace_id=workspace_id)
         uow.tags.get.return_value = tag
         uow.workspaces.get_member.return_value = None
@@ -258,7 +270,7 @@ class TestCreateWorkspace:
     @pytest.mark.asyncio
     async def test_should_raise_not_a_member_when_user_not_in_workspace(
         self, service: TagService, uow: FakeUnitOfWork, user_id: UUID, workspace_id: UUID
-    ):
+    ) -> None:
         uow.workspaces.get_member.return_value = None
 
         with pytest.raises(NotAMemberError):
@@ -267,7 +279,7 @@ class TestCreateWorkspace:
     @pytest.mark.asyncio
     async def test_should_raise_insufficient_permissions_when_viewer(
         self, service: TagService, uow: FakeUnitOfWork, user_id: UUID, workspace_id: UUID
-    ):
+    ) -> None:
         uow.workspaces.get_member.return_value = WorkspaceMember(
             workspace_id=workspace_id, user_id=user_id, role=WorkspaceRole.VIEWER
         )
@@ -278,7 +290,7 @@ class TestCreateWorkspace:
     @pytest.mark.asyncio
     async def test_should_raise_duplicate_when_name_exists_in_workspace(
         self, service: TagService, uow: FakeUnitOfWork, user_id: UUID, workspace_id: UUID
-    ):
+    ) -> None:
         uow.workspaces.get_member.return_value = WorkspaceMember(
             workspace_id=workspace_id, user_id=user_id, role=WorkspaceRole.MEMBER
         )
@@ -298,7 +310,7 @@ class TestUpdateWorkspace:
     @pytest.mark.asyncio
     async def test_should_update_workspace_tag_when_member(
         self, service: TagService, uow: FakeUnitOfWork, user_id: UUID, workspace_id: UUID
-    ):
+    ) -> None:
         tag = Tag(user_id=uuid4(), name="Old", workspace_id=workspace_id)
         uow.tags.get.return_value = tag
         uow.workspaces.get_member.return_value = WorkspaceMember(
@@ -315,7 +327,7 @@ class TestUpdateWorkspace:
     @pytest.mark.asyncio
     async def test_should_raise_not_a_member_when_non_member_updates(
         self, service: TagService, uow: FakeUnitOfWork, user_id: UUID, workspace_id: UUID
-    ):
+    ) -> None:
         tag = Tag(user_id=uuid4(), name="WS Tag", workspace_id=workspace_id)
         uow.tags.get.return_value = tag
         uow.workspaces.get_member.return_value = None
@@ -326,7 +338,7 @@ class TestUpdateWorkspace:
     @pytest.mark.asyncio
     async def test_should_raise_duplicate_when_workspace_name_taken(
         self, service: TagService, uow: FakeUnitOfWork, user_id: UUID, workspace_id: UUID
-    ):
+    ) -> None:
         tag = Tag(user_id=uuid4(), name="Original", workspace_id=workspace_id)
         uow.tags.get.return_value = tag
         uow.workspaces.get_member.return_value = WorkspaceMember(
@@ -348,7 +360,7 @@ class TestDeleteWorkspace:
     @pytest.mark.asyncio
     async def test_should_delete_workspace_tag_when_member(
         self, service: TagService, uow: FakeUnitOfWork, user_id: UUID, workspace_id: UUID
-    ):
+    ) -> None:
         tag = Tag(user_id=uuid4(), name="WS Tag", workspace_id=workspace_id)
         uow.tags.get.return_value = tag
         uow.workspaces.get_member.return_value = WorkspaceMember(
@@ -364,7 +376,7 @@ class TestDeleteWorkspace:
     @pytest.mark.asyncio
     async def test_should_raise_not_a_member_when_non_member_deletes(
         self, service: TagService, uow: FakeUnitOfWork, user_id: UUID, workspace_id: UUID
-    ):
+    ) -> None:
         tag = Tag(user_id=uuid4(), name="WS Tag", workspace_id=workspace_id)
         uow.tags.get.return_value = tag
         uow.workspaces.get_member.return_value = None
@@ -379,7 +391,7 @@ class TestAttachDetachWorkspace:
     @pytest.mark.asyncio
     async def test_attach_should_succeed_when_tag_and_todo_in_same_workspace(
         self, service: TagService, uow: FakeUnitOfWork, user_id: UUID, workspace_id: UUID
-    ):
+    ) -> None:
         tag = Tag(user_id=uuid4(), name="Feature", workspace_id=workspace_id)
         todo = Todo(user_id=uuid4(), title="Task", workspace_id=workspace_id)
         uow.tags.get.return_value = tag
@@ -396,7 +408,7 @@ class TestAttachDetachWorkspace:
     @pytest.mark.asyncio
     async def test_attach_should_raise_when_tag_and_todo_in_different_workspaces(
         self, service: TagService, uow: FakeUnitOfWork, user_id: UUID, workspace_id: UUID
-    ):
+    ) -> None:
         other_workspace = uuid4()
         tag = Tag(user_id=uuid4(), name="Feature", workspace_id=workspace_id)
         todo = Todo(user_id=uuid4(), title="Task", workspace_id=other_workspace)
@@ -412,7 +424,7 @@ class TestAttachDetachWorkspace:
     @pytest.mark.asyncio
     async def test_detach_should_succeed_when_workspace_member(
         self, service: TagService, uow: FakeUnitOfWork, user_id: UUID, workspace_id: UUID
-    ):
+    ) -> None:
         tag = Tag(user_id=uuid4(), name="Feature", workspace_id=workspace_id)
         todo = Todo(user_id=uuid4(), title="Task", workspace_id=workspace_id)
         uow.tags.get.return_value = tag
@@ -429,7 +441,7 @@ class TestAttachDetachWorkspace:
     @pytest.mark.asyncio
     async def test_detach_should_raise_when_non_member(
         self, service: TagService, uow: FakeUnitOfWork, user_id: UUID, workspace_id: UUID
-    ):
+    ) -> None:
         tag = Tag(user_id=uuid4(), name="Feature", workspace_id=workspace_id)
         todo = Todo(user_id=uuid4(), title="Task", workspace_id=workspace_id)
         uow.tags.get.return_value = tag
@@ -446,7 +458,7 @@ class TestGetTagsForTodoWorkspace:
     @pytest.mark.asyncio
     async def test_should_return_tags_when_user_is_workspace_member(
         self, service: TagService, uow: FakeUnitOfWork, user_id: UUID, workspace_id: UUID
-    ):
+    ) -> None:
         todo = Todo(user_id=uuid4(), title="WS Task", workspace_id=workspace_id)
         expected_tags = [Tag(user_id=uuid4(), name="Bug", workspace_id=workspace_id)]
         uow.todos.get.return_value = todo
@@ -463,7 +475,7 @@ class TestGetTagsForTodoWorkspace:
     @pytest.mark.asyncio
     async def test_should_raise_not_found_when_non_member(
         self, service: TagService, uow: FakeUnitOfWork, user_id: UUID, workspace_id: UUID
-    ):
+    ) -> None:
         todo = Todo(user_id=uuid4(), title="WS Task", workspace_id=workspace_id)
         uow.todos.get.return_value = todo
         uow.workspaces.get_member.return_value = None
@@ -478,7 +490,7 @@ class TestGetAllForUserWorkspace:
     @pytest.mark.asyncio
     async def test_should_raise_not_a_member_when_non_member_queries_workspace(
         self, service: TagService, uow: FakeUnitOfWork, user_id: UUID, workspace_id: UUID
-    ):
+    ) -> None:
         uow.workspaces.get_member.return_value = None
 
         with pytest.raises(NotAMemberError):

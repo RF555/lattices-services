@@ -4,7 +4,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, Request, status
 
-from api.dependencies.auth import CurrentUser
+from api.dependencies.auth import CurrentUser, InitializedUser
 from api.v1.dependencies import get_workspace_service
 from api.v1.schemas.workspace import (
     AddMemberRequest,
@@ -45,7 +45,7 @@ _ROLE_TO_STR = {v: k for k, v in _ROLE_MAP.items()}
 @limiter.limit("30/minute")  # type: ignore[untyped-decorator]
 async def list_workspaces(
     request: Request,
-    user: CurrentUser,
+    user: InitializedUser,
     service: WorkspaceService = Depends(get_workspace_service),
 ) -> WorkspaceListResponse:
     """Get all workspaces the authenticated user is a member of."""
