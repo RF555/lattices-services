@@ -26,6 +26,7 @@ class ErrorCode(StrEnum):
     CIRCULAR_REFERENCE = "CIRCULAR_REFERENCE"
     INVALID_ROLE = "INVALID_ROLE"
     LAST_OWNER = "LAST_OWNER"
+    LAST_WORKSPACE = "LAST_WORKSPACE"
     WORKSPACE_MOVE_INVALID = "WORKSPACE_MOVE_INVALID"
 
     # Authorization errors (403) - workspace-specific
@@ -182,6 +183,17 @@ class LastOwnerError(AppException):
         super().__init__(
             error_code=ErrorCode.LAST_OWNER,
             message="Cannot remove or demote the last owner of a workspace",
+            status_code=400,
+        )
+
+
+class LastWorkspaceError(AppException):
+    """Cannot delete or leave the user's last workspace."""
+
+    def __init__(self) -> None:
+        super().__init__(
+            error_code=ErrorCode.LAST_WORKSPACE,
+            message="Cannot delete or leave your last workspace",
             status_code=400,
         )
 

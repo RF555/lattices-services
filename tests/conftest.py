@@ -141,10 +141,11 @@ async def authenticated_client(
     - Overrides auth dependency to return the test user
     - Overrides UoW factory to use test session
     """
-    from api.dependencies.auth import get_auth_provider, get_current_user
+    from api.dependencies.auth import get_auth_provider, get_current_user, get_workspace_service_dep
     from api.v1.dependencies import get_tag_service, get_todo_service
     from domain.services.tag_service import TagService
     from domain.services.todo_service import TodoService
+    from domain.services.workspace_service import WorkspaceService
     from infrastructure.database.sqlalchemy_uow import SQLAlchemyUnitOfWork
     from main import create_app
 
@@ -183,10 +184,14 @@ async def authenticated_client(
     def override_get_tag_service():
         return TagService(test_uow_factory)
 
+    def override_get_workspace_service_dep():
+        return WorkspaceService(test_uow_factory)
+
     app.dependency_overrides[get_current_user] = override_get_user
     app.dependency_overrides[get_auth_provider] = override_get_auth_provider
     app.dependency_overrides[get_todo_service] = override_get_todo_service
     app.dependency_overrides[get_tag_service] = override_get_tag_service
+    app.dependency_overrides[get_workspace_service_dep] = override_get_workspace_service_dep
 
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as c:

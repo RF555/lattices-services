@@ -1,6 +1,6 @@
 """Authentication dependencies for FastAPI."""
 
-from typing import Annotated
+from typing import TYPE_CHECKING, Annotated
 from uuid import UUID
 
 from fastapi import Depends, Header
@@ -9,6 +9,9 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from core.exceptions import AuthenticationError, ErrorCode
 from infrastructure.auth.jwt_provider import JWTAuthProvider
 from infrastructure.auth.provider import TokenUser
+
+if TYPE_CHECKING:
+    from domain.services.workspace_service import WorkspaceService
 
 # Security scheme for OpenAPI docs
 security = HTTPBearer(auto_error=False)
@@ -78,6 +81,25 @@ async def get_optional_user(
 # Type alias for convenience in route handlers
 CurrentUser = Annotated[TokenUser, Depends(get_current_user)]
 OptionalUser = Annotated[TokenUser | None, Depends(get_optional_user)]
+
+
+def get_workspace_service_dep() -> "WorkspaceService":
+    """Get WorkspaceService via lazy import to avoid circular imports."""
+    from api.v1.dependencies import get_workspace_service
+
+    return get_workspace_service()
+
+
+async def get_initialized_user(
+    user: TokenUser = Depends(get_current_user),
+    workspace_service: "WorkspaceService" = Depends(get_workspace_service_dep),
+) -> TokenUser:
+    """Authenticate user and ensure they have at least one workspace."""
+    await workspace_service.ensure_personal_workspace(user.id)
+    return user
+
+
+InitializedUser = Annotated[TokenUser, Depends(get_initialized_user)]
 
 
 async def get_workspace_id_from_header(

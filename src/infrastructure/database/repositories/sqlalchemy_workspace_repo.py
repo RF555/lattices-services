@@ -177,6 +177,16 @@ class SQLAlchemyWorkspaceRepository:
         result = await self._session.execute(stmt)
         return result.scalar_one()
 
+    async def count_user_workspaces(self, user_id: UUID) -> int:
+        """Count the number of workspaces a user is a member of."""
+        stmt = (
+            select(func.count())
+            .select_from(WorkspaceMemberModel)
+            .where(WorkspaceMemberModel.user_id == user_id)
+        )
+        result = await self._session.execute(stmt)
+        return result.scalar_one()
+
     def _to_entity(self, model: WorkspaceModel) -> Workspace:
         """Convert ORM model to domain entity."""
         return Workspace(

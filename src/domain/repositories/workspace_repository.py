@@ -62,3 +62,7 @@ class IWorkspaceRepository(Protocol):
     async def count_owners(self, workspace_id: UUID) -> int:
         """Count the number of owners in a workspace."""
         ...
+
+    async def count_user_workspaces(self, user_id: UUID) -> int:
+        """Count the number of workspaces a user is a member of."""
+        ...

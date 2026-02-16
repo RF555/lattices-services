@@ -1,15 +1,19 @@
 """Workspace service layer with business logic."""
 
+import logging
 import re
 from collections.abc import Callable
 from datetime import datetime
-from typing import Optional
+from typing import ClassVar, Optional
 from uuid import UUID
+
+from sqlalchemy.exc import IntegrityError
 
 from core.exceptions import (
     AlreadyAMemberError,
     InsufficientPermissionsError,
     LastOwnerError,
+    LastWorkspaceError,
     NotAMemberError,
     WorkspaceNotFoundError,
     WorkspaceSlugTakenError,
@@ -30,6 +34,11 @@ from domain.services.notification_service import NotificationService
 class WorkspaceService:
     """Service layer for Workspace business logic."""
 
+    # In-memory cache of user IDs known to have at least one workspace.
+    # Avoids a DB round-trip on every authenticated request for the 99.9%
+    # case where the user already has workspaces.
+    _provisioned_users: ClassVar[set[UUID]] = set()
+
     def __init__(
         self,
         uow_factory: Callable[[], IUnitOfWork],
@@ -39,6 +48,11 @@ class WorkspaceService:
         self._uow_factory = uow_factory
         self._activity = activity_service
         self._notification = notification_service
+
+    @classmethod
+    def clear_provisioned_cache(cls) -> None:
+        """Clear the provisioned-users cache. Intended for testing."""
+        cls._provisioned_users.clear()
 
     async def get_all_for_user(self, user_id: UUID) -> list[Workspace]:
         """Get all workspaces a user is a member of."""
@@ -96,6 +110,67 @@ class WorkspaceService:
             await uow.commit()
             return created
 
+    async def ensure_personal_workspace(self, user_id: UUID) -> Workspace | None:
+        """Auto-create a "Personal" workspace if the user has none.
+
+        Idempotent: returns None if the user already has workspaces.
+        Handles race conditions from concurrent requests via IntegrityError catch.
+        Uses an in-memory cache to skip the DB check for known-provisioned users.
+        """
+        logger = logging.getLogger(__name__)
+
+        # Fast path: skip DB query for users already known to have workspaces
+        if user_id in self._provisioned_users:
+            return None
+
+        async with self._uow_factory() as uow:
+            existing = await uow.workspaces.get_all_for_user(user_id)
+            if existing:
+                self._provisioned_users.add(user_id)
+                return None
+
+            slug = f"personal-{str(user_id)[:8]}"
+
+            # Handle slug collision by extending to 12 chars
+            taken = await uow.workspaces.get_by_slug(slug)
+            if taken:
+                slug = f"personal-{str(user_id)[:12]}"
+
+            workspace = Workspace(
+                name="Personal",
+                slug=slug,
+                description=None,
+                created_by=user_id,
+            )
+
+            try:
+                created = await uow.workspaces.create(workspace)
+
+                owner_member = WorkspaceMember(
+                    workspace_id=created.id,
+                    user_id=user_id,
+                    role=WorkspaceRole.OWNER,
+                )
+                await uow.workspaces.add_member(owner_member)
+
+                await uow.commit()
+                self._provisioned_users.add(user_id)
+                logger.info("Auto-created personal workspace for user %s", user_id)
+                return created
+            except IntegrityError as exc:
+                await uow.rollback()
+                # Only swallow unique-constraint violations (race condition).
+                # Re-raise anything else (NOT NULL, FK, etc.) to avoid masking bugs.
+                orig = str(exc.orig).lower() if exc.orig else ""
+                if "unique" in orig or "duplicate" in orig:
+                    self._provisioned_users.add(user_id)
+                    logger.debug(
+                        "Personal workspace already created (race condition) for user %s",
+                        user_id,
+                    )
+                    return None
+                raise
+
     async def update(
         self,
         workspace_id: UUID,
@@ -146,6 +221,11 @@ class WorkspaceService:
                 raise WorkspaceNotFoundError(str(workspace_id))
 
             await self._require_role(uow, workspace_id, user_id, WorkspaceRole.OWNER)
+
+            # Prevent deleting user's last workspace
+            workspace_count = await uow.workspaces.count_user_workspaces(user_id)
+            if workspace_count <= 1:
+                raise LastWorkspaceError()
 
             deleted = await uow.workspaces.delete(workspace_id)
             await uow.commit()
@@ -322,6 +402,11 @@ class WorkspaceService:
             is_self_leave = user_id == target_user_id
 
             if is_self_leave:
+                # Prevent leaving last workspace
+                workspace_count = await uow.workspaces.count_user_workspaces(target_user_id)
+                if workspace_count <= 1:
+                    raise LastWorkspaceError()
+
                 # Prevent last owner from leaving
                 if target_member.role == WorkspaceRole.OWNER:
                     owner_count = await uow.workspaces.count_owners(workspace_id)

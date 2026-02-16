@@ -7,8 +7,8 @@
 [![SQLAlchemy 2.0](https://img.shields.io/badge/SQLAlchemy-2.0+-D71F00?logo=sqlalchemy&logoColor=white)](https://www.sqlalchemy.org/)
 [![Pydantic v2](https://img.shields.io/badge/Pydantic-v2-E92063?logo=pydantic&logoColor=white)](https://docs.pydantic.dev/)
 [![Code style: Ruff](https://img.shields.io/badge/Code_style-Ruff-D7FF64?logo=ruff&logoColor=black)](https://docs.astral.sh/ruff/)
-[![Tests: 322](https://img.shields.io/badge/Tests-322_passing-brightgreen)](tests/)
-[![Coverage: 86%](https://img.shields.io/badge/Coverage-86%25-brightgreen)](tests/)
+[![Tests: 335](https://img.shields.io/badge/Tests-335_passing-brightgreen)](tests/)
+[![Coverage: 85%](https://img.shields.io/badge/Coverage-85%25-brightgreen)](tests/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 RESTful API for managing hierarchical tasks with infinite nesting, multi-user workspaces, role-based access control, real-time notifications, and activity audit trails. Built with Clean Architecture principles for maintainability and testability.
@@ -44,6 +44,8 @@ RESTful API for managing hierarchical tasks with infinite nesting, multi-user wo
 
 ### Multi-User Workspaces
 - **Workspace Management** -- Create shared workspaces with unique slugs for team collaboration
+- **Auto-Provisioning** -- New users automatically receive a "Personal" workspace on first authenticated request (idempotent, race-condition safe with in-memory caching)
+- **Last-Workspace Guards** -- Users cannot delete or leave their last workspace, preventing zero-workspace states
 - **Role-Based Access Control** -- Four hierarchical roles: Viewer, Member, Admin, Owner
 - **Ownership Transfer** -- Owners can transfer workspace ownership to other admins
 - **Workspace-Scoped Todos & Tags** -- Tasks and tags can optionally belong to a workspace (backward-compatible with personal tasks)
@@ -547,11 +549,11 @@ pytest tests/integration/api/test_todos_api.py -v
 
 | Test Type | Count | Location | Scope |
 |---|---|---|---|
-| **Unit** (Services) | 201 | `tests/unit/services/` | Business logic, permissions, side effects |
+| **Unit** (Services) | 214 | `tests/unit/services/` | Business logic, permissions, side effects |
 | **Unit** (Auth) | 23 | `tests/unit/auth/` | JWT validation, auth dependencies |
 | **Unit** (API/Middleware) | 10 | `tests/unit/api/`, `tests/unit/middleware/` | Exception handlers, security headers |
 | **Integration** (API) | 88 | `tests/integration/api/` | Full request/response through all layers |
-| **Total** | **322** | | **86% line coverage** |
+| **Total** | **335** | | **85% line coverage** |
 
 ### Coverage highlights
 
@@ -562,7 +564,7 @@ pytest tests/integration/api/test_todos_api.py -v
 | Exception handlers | 100% |
 | Middleware | 93--100% |
 | API routes | 64--90% |
-| Overall | **86%** |
+| Overall | **85%** |
 
 The test infrastructure uses:
 - **Unit tests:** `FakeUnitOfWork` with `AsyncMock` repos for isolated service testing

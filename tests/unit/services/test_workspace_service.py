@@ -9,6 +9,7 @@ from core.exceptions import (
     AlreadyAMemberError,
     InsufficientPermissionsError,
     LastOwnerError,
+    LastWorkspaceError,
     NotAMemberError,
     WorkspaceNotFoundError,
     WorkspaceSlugTakenError,
@@ -269,6 +270,7 @@ class TestDelete:
         uow.workspaces.get_member.return_value = WorkspaceMember(
             workspace_id=workspace_id, user_id=user_id, role=WorkspaceRole.OWNER
         )
+        uow.workspaces.count_user_workspaces.return_value = 2
         uow.workspaces.delete.return_value = True
 
         result = await service.delete(workspace_id=workspace_id, user_id=user_id)
@@ -509,6 +511,7 @@ class TestRemoveMember:
             WorkspaceMember(workspace_id=workspace_id, user_id=user_id, role=WorkspaceRole.MEMBER),
             WorkspaceMember(workspace_id=workspace_id, user_id=user_id, role=WorkspaceRole.MEMBER),
         ]
+        uow.workspaces.count_user_workspaces.return_value = 2
         uow.workspaces.remove_member.return_value = True
 
         result = await service.remove_member(
@@ -532,6 +535,7 @@ class TestRemoveMember:
             WorkspaceMember(workspace_id=workspace_id, user_id=user_id, role=WorkspaceRole.OWNER),
             WorkspaceMember(workspace_id=workspace_id, user_id=user_id, role=WorkspaceRole.OWNER),
         ]
+        uow.workspaces.count_user_workspaces.return_value = 2
         uow.workspaces.count_owners.return_value = 1
 
         with pytest.raises(LastOwnerError):
@@ -1132,6 +1136,7 @@ class TestRemoveMemberActivityAndNotification:
             WorkspaceMember(workspace_id=workspace_id, user_id=user_id, role=WorkspaceRole.MEMBER),
             WorkspaceMember(workspace_id=workspace_id, user_id=user_id, role=WorkspaceRole.MEMBER),
         ]
+        uow.workspaces.count_user_workspaces.return_value = 2
         uow.workspaces.remove_member.return_value = True
 
         await service_with_notifications.remove_member(
@@ -1341,3 +1346,215 @@ class TestTransferOwnershipActivityLogging:
                 current_owner_id=user_id,
                 new_owner_id=uuid4(),
             )
+
+
+# --- ensure_personal_workspace ---
+
+
+class TestEnsurePersonalWorkspace:
+    @pytest.fixture(autouse=True)
+    def _clear_cache(self):
+        """Clear the provisioned-users cache before each test."""
+        WorkspaceService.clear_provisioned_cache()
+        yield
+        WorkspaceService.clear_provisioned_cache()
+
+    @pytest.mark.asyncio
+    async def test_creates_workspace_when_user_has_none(
+        self, service: WorkspaceService, uow: FakeUnitOfWork, user_id: UUID
+    ):
+        uow.workspaces.get_all_for_user.return_value = []
+        uow.workspaces.get_by_slug.return_value = None
+        slug = f"personal-{str(user_id)[:8]}"
+        created = Workspace(name="Personal", slug=slug, created_by=user_id)
+        uow.workspaces.create.return_value = created
+        uow.workspaces.add_member.return_value = WorkspaceMember(
+            workspace_id=created.id, user_id=user_id, role=WorkspaceRole.OWNER
+        )
+
+        result = await service.ensure_personal_workspace(user_id)
+
+        assert result is not None
+        assert result.name == "Personal"
+        assert result.slug.startswith("personal-")
+        uow.workspaces.create.assert_called_once()
+        uow.workspaces.add_member.assert_called_once()
+        add_call = uow.workspaces.add_member.call_args[0][0]
+        assert add_call.role == WorkspaceRole.OWNER
+        assert uow.committed
+
+    @pytest.mark.asyncio
+    async def test_noop_when_user_has_workspaces(
+        self, service: WorkspaceService, uow: FakeUnitOfWork, user_id: UUID
+    ):
+        existing_ws = Workspace(name="Existing", slug="existing", created_by=user_id)
+        uow.workspaces.get_all_for_user.return_value = [existing_ws]
+
+        result = await service.ensure_personal_workspace(user_id)
+
+        assert result is None
+        uow.workspaces.create.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_handles_slug_collision(
+        self, service: WorkspaceService, uow: FakeUnitOfWork, user_id: UUID
+    ):
+        uow.workspaces.get_all_for_user.return_value = []
+        # First slug is taken, second is not
+        existing = Workspace(name="Other", slug=f"personal-{str(user_id)[:8]}", created_by=uuid4())
+        uow.workspaces.get_by_slug.return_value = existing
+        created = Workspace(
+            name="Personal", slug=f"personal-{str(user_id)[:12]}", created_by=user_id
+        )
+        uow.workspaces.create.return_value = created
+        uow.workspaces.add_member.return_value = WorkspaceMember(
+            workspace_id=created.id, user_id=user_id, role=WorkspaceRole.OWNER
+        )
+
+        result = await service.ensure_personal_workspace(user_id)
+
+        assert result is not None
+        create_call = uow.workspaces.create.call_args[0][0]
+        assert create_call.slug == f"personal-{str(user_id)[:12]}"
+        assert uow.committed
+
+    @pytest.mark.asyncio
+    async def test_cache_skips_db_on_second_call(
+        self, service: WorkspaceService, uow: FakeUnitOfWork, user_id: UUID
+    ):
+        """After confirming a user has workspaces, subsequent calls skip the DB."""
+        existing_ws = Workspace(name="Existing", slug="existing", created_by=user_id)
+        uow.workspaces.get_all_for_user.return_value = [existing_ws]
+
+        # First call hits DB
+        await service.ensure_personal_workspace(user_id)
+        assert uow.workspaces.get_all_for_user.call_count == 1
+
+        # Second call skips DB entirely (cache hit)
+        await service.ensure_personal_workspace(user_id)
+        assert uow.workspaces.get_all_for_user.call_count == 1  # still 1
+
+    @pytest.mark.asyncio
+    async def test_cache_populated_after_creation(
+        self, service: WorkspaceService, uow: FakeUnitOfWork, user_id: UUID
+    ):
+        """After creating a workspace, the user is cached as provisioned."""
+        uow.workspaces.get_all_for_user.return_value = []
+        uow.workspaces.get_by_slug.return_value = None
+        slug = f"personal-{str(user_id)[:8]}"
+        created = Workspace(name="Personal", slug=slug, created_by=user_id)
+        uow.workspaces.create.return_value = created
+        uow.workspaces.add_member.return_value = WorkspaceMember(
+            workspace_id=created.id, user_id=user_id, role=WorkspaceRole.OWNER
+        )
+
+        await service.ensure_personal_workspace(user_id)
+
+        # Second call should be a cache hit — no additional DB calls
+        await service.ensure_personal_workspace(user_id)
+        assert uow.workspaces.get_all_for_user.call_count == 1
+
+    @pytest.mark.asyncio
+    async def test_non_unique_integrity_error_is_reraised(
+        self, service: WorkspaceService, uow: FakeUnitOfWork, user_id: UUID
+    ):
+        """IntegrityErrors that are NOT unique-constraint violations must be re-raised."""
+        from sqlalchemy.exc import IntegrityError
+
+        uow.workspaces.get_all_for_user.return_value = []
+        uow.workspaces.get_by_slug.return_value = None
+        uow.workspaces.create.side_effect = IntegrityError(
+            "INSERT ...", {}, Exception("NOT NULL constraint failed: workspaces.name")
+        )
+
+        with pytest.raises(IntegrityError):
+            await service.ensure_personal_workspace(user_id)
+
+
+# --- Last workspace guards ---
+
+
+class TestLastWorkspaceGuard:
+    @pytest.mark.asyncio
+    async def test_delete_raises_when_last_workspace(
+        self,
+        service: WorkspaceService,
+        uow: FakeUnitOfWork,
+        workspace_id: UUID,
+        user_id: UUID,
+        sample_workspace: Workspace,
+    ):
+        uow.workspaces.get.return_value = sample_workspace
+        uow.workspaces.get_member.return_value = WorkspaceMember(
+            workspace_id=workspace_id, user_id=user_id, role=WorkspaceRole.OWNER
+        )
+        uow.workspaces.count_user_workspaces.return_value = 1
+
+        with pytest.raises(LastWorkspaceError):
+            await service.delete(workspace_id=workspace_id, user_id=user_id)
+
+    @pytest.mark.asyncio
+    async def test_delete_succeeds_when_user_has_other_workspaces(
+        self,
+        service: WorkspaceService,
+        uow: FakeUnitOfWork,
+        workspace_id: UUID,
+        user_id: UUID,
+        sample_workspace: Workspace,
+    ):
+        uow.workspaces.get.return_value = sample_workspace
+        uow.workspaces.get_member.return_value = WorkspaceMember(
+            workspace_id=workspace_id, user_id=user_id, role=WorkspaceRole.OWNER
+        )
+        uow.workspaces.count_user_workspaces.return_value = 2
+        uow.workspaces.delete.return_value = True
+
+        result = await service.delete(workspace_id=workspace_id, user_id=user_id)
+
+        assert result is True
+        assert uow.committed
+
+    @pytest.mark.asyncio
+    async def test_self_leave_raises_when_last_workspace(
+        self,
+        service: WorkspaceService,
+        uow: FakeUnitOfWork,
+        workspace_id: UUID,
+        user_id: UUID,
+        sample_workspace: Workspace,
+    ):
+        uow.workspaces.get.return_value = sample_workspace
+        uow.workspaces.get_member.side_effect = [
+            WorkspaceMember(workspace_id=workspace_id, user_id=user_id, role=WorkspaceRole.MEMBER),
+            WorkspaceMember(workspace_id=workspace_id, user_id=user_id, role=WorkspaceRole.MEMBER),
+        ]
+        uow.workspaces.count_user_workspaces.return_value = 1
+
+        with pytest.raises(LastWorkspaceError):
+            await service.remove_member(
+                workspace_id=workspace_id, user_id=user_id, target_user_id=user_id
+            )
+
+    @pytest.mark.asyncio
+    async def test_self_leave_succeeds_when_user_has_other_workspaces(
+        self,
+        service: WorkspaceService,
+        uow: FakeUnitOfWork,
+        workspace_id: UUID,
+        user_id: UUID,
+        sample_workspace: Workspace,
+    ):
+        uow.workspaces.get.return_value = sample_workspace
+        uow.workspaces.get_member.side_effect = [
+            WorkspaceMember(workspace_id=workspace_id, user_id=user_id, role=WorkspaceRole.MEMBER),
+            WorkspaceMember(workspace_id=workspace_id, user_id=user_id, role=WorkspaceRole.MEMBER),
+        ]
+        uow.workspaces.count_user_workspaces.return_value = 2
+        uow.workspaces.remove_member.return_value = True
+
+        result = await service.remove_member(
+            workspace_id=workspace_id, user_id=user_id, target_user_id=user_id
+        )
+
+        assert result is True
+        assert uow.committed
